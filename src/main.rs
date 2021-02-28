@@ -16,8 +16,24 @@ enum ReplResult {
     Stop
 }  
 
+fn print_grammer() {
+println!("
+expr ::= int | (read) | (- exp) | (+ exp exp)
+Rint ::= (Program '() exp)
+");
+}
+
+fn print_commands() {
+println!("
+:grammer     print the grammer
+:quit        quit the repl
+");
+}
+
 fn handle_repl_command(command: &str) -> ReplResult {
     match command {
+        ":help" => { print_commands(); ReplResult::KeepGoing },
+        ":grammer" => { print_grammer(); ReplResult::KeepGoing },
         ":quit" => ReplResult::Stop,
         _ => ReplResult::KeepGoing
     }
