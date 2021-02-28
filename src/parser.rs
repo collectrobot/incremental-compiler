@@ -1,0 +1,273 @@
+use crate::token::{Token, TokenType};
+//use crate::lexer::{Lexer};
+use crate::ast::{Program, AstNode};
+
+use std::collections::HashMap;
+
+#[derive(PartialEq)]
+enum Value {
+    I64(i64), // value might be known
+}
+
+#[derive(PartialEq)]
+enum Symbol {
+    Operator,
+    Function {name: String, args: Vec<Value>, result: Value },
+    Keyword(String),
+    Variable { name: String, value: Value },
+}
+
+pub struct Parser {
+    tokens: Vec<Token>,
+    current: usize,
+    parse_error: bool,
+
+    symbol_table: HashMap<String, Symbol>,
+}
+
+impl Parser {
+
+    fn load_symbol_table(&mut self) {
+        self.symbol_table.insert("+".to_owned(), Symbol::Operator);
+        self.symbol_table.insert("-".to_owned(), Symbol::Operator);
+
+        self.symbol_table.insert("read".to_owned(),
+            Symbol::Function {
+                name: "read".to_owned(),
+                args: vec!(),
+                result: Value::I64(0)
+            }
+        );
+
+        self.symbol_table.insert("let".to_owned(), Symbol::Keyword("let".to_owned()));
+    }
+
+    fn next(&mut self) -> Token {
+        self.current += 1;
+        let token = self.peek(0);
+
+        token
+    }
+
+    fn peek(&self, n: i64) -> Token {
+        let mut offset = (self.current as i64) + n;
+        let max_len = (self.tokens.len() - 1) as i64;
+
+        offset = 
+            if offset > max_len {
+                max_len
+            } else if offset < 0 {
+                0
+            } else {
+                offset
+            };
+
+        self.tokens[offset as usize].clone()
+    }
+
+    fn is(&self, ttype: TokenType) -> bool {
+        self.current().ttype == ttype
+    }
+
+    fn next_is(&self, ttype: TokenType) -> bool {
+        self.peek(1).ttype == ttype
+    }
+
+    fn expect(&mut self, lexeme: &str) -> bool {
+        if self.peek(0).lexeme == lexeme {
+            self.next();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn current(&self) -> Token {
+        //self.tokens[self.current].clone()
+        self.peek(0)
+    } 
+
+    fn error(&mut self) {
+        self.parse_error = true;
+    }
+
+    fn make_error_node(&mut self, msg: String, offset: i64) -> AstNode {
+        self.error();
+        AstNode::Error {
+            msg: msg,
+            token: self.peek(offset)
+        }
+    }
+
+    pub fn new(tokens: Vec<Token>) -> Parser {
+        let mut p = 
+            Parser {
+                tokens: tokens,
+                current: 0,
+                parse_error: false,
+                symbol_table: HashMap::new(),
+            };
+
+        p.load_symbol_table();
+
+        p
+    }
+
+    fn parse_number(&mut self) -> AstNode {
+        let token = self.current();
+        let node = AstNode::Int(token.lexeme.parse::<i64>().unwrap());
+
+        self.next();
+
+        node
+    }
+
+    fn parse_identifier(&mut self) -> AstNode {
+        let token = self.current();
+        self.next();
+
+        match &token.lexeme[..] {
+            "read" => {
+                AstNode::Prim{ op: token.lexeme, args: vec!() }
+            },
+
+            // (let ([var exp]) (exp))
+            "let" => {
+
+                if !self.expect("(") {
+                    return self.make_error_node("Expected a '('".to_owned(), 0)
+                }
+
+                if !self.expect("[") {
+                    return self.make_error_node("Expected a '['".to_owned(), 0)
+                }
+
+                let token = self.current();
+
+                let var = token.lexeme;
+
+                self.next();
+
+                let value = Box::new(self.parse_expr());
+                
+                if !self.expect("]") {
+                    return self.make_error_node("Expected a ']'".to_owned(), 0)
+                }
+
+                if !self.expect(")") {
+                    return self.make_error_node("Expected a ')'".to_owned(), 0)
+                }
+
+                let in_exp = Box::new(self.parse_expr());
+
+                AstNode::Let {
+                    var: var,
+                    value: value,
+                    in_exp: in_exp
+                }
+            },
+            _ => {
+                AstNode::Var {
+                    name: token.lexeme
+                }
+            }
+        }
+    }
+
+    fn parse_operator(&mut self) -> AstNode {
+        let token = self.current();
+        self.next();
+
+        match token.ttype {
+            TokenType::Add => {
+                AstNode::Prim{
+                    op: token.lexeme,
+                    args: vec![self.parse_expr(), self.parse_expr()]
+                }
+            },
+            TokenType::Negate => {
+                AstNode::Prim{
+                    op: token.lexeme,
+                    args: vec![self.parse_expr()]
+                }
+            },
+
+            _ => self.make_error_node("Unknown operator in parse_operator: ".to_owned(), -1)
+        }
+    }
+
+    fn parse_expr(&mut self) -> AstNode {
+
+        let token = self.current();
+
+        match token.ttype {
+
+            TokenType::Lparen => {
+                self.next();
+
+                let mut node = self.parse_expr();
+
+                if !self.is(TokenType::Rparen) {
+                    match node {
+                        AstNode::Error {..} => { // don't there's already an error message
+                        },
+                        _ => {
+                            node = self.make_error_node("Expected a ')', found: ".to_owned(), 0)
+                        }
+                    }
+                }
+
+                self.next();
+
+                node
+            },
+
+            TokenType::Number => {
+                self.parse_number()
+            },
+
+            TokenType::Add |
+            TokenType::Negate => {
+                self.parse_operator()
+            },
+
+            TokenType::Identifier => {
+
+                self.parse_identifier()
+
+            }
+            _ => self.make_error_node("Unknown token in parse_expr: ".to_owned(), 0)
+        }
+
+    }
+
+    fn parse_program(&mut self) -> Program {
+        Program {
+            info: (),
+            exp: {
+                if !self.is(TokenType::Lparen) {
+                    self.make_error_node("Expected a '(', found: ".to_owned(), 0)
+                } else {
+
+                    self.next();
+                    let mut node = self.parse_expr();
+                    if !self.is(TokenType::Rparen) {
+                        match node {
+                            AstNode::Error {..} => { // don't there's already an error message
+                            },
+                            _ => {
+                                node = self.make_error_node("Expected a ')', found: ".to_owned(), 0)
+                            }
+                        }
+                    }
+
+                    node
+                }
+            }
+        }
+    }
+
+    pub fn parse(&mut self) -> Program {
+        self.parse_program()
+    }
+}
