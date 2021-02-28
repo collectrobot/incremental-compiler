@@ -1,5 +1,5 @@
 # What is this
-This is me going through the [Essentials of Compilation: The Incremental, Nano-Pass Approach](https://iucompilercourse.github.io/IU-P423-P523-E313-E513-Fall-2020/), but using [Rust](https://www.rust-lang.org/) instead of [Scheme](https://en.wikipedia.org/wiki/Scheme_(programming_language)).
+This is me going through the [Essentials of Compilation: The Incremental, Nano-Pass Approach](https://iucompilercourse.github.io/IU-P423-P523-E313-E513-Fall-2020/), but using [Rust](https://en.wikipedia.org/wiki/Rust_(programming_language)) instead of [Scheme](https://en.wikipedia.org/wiki/Scheme_(programming_language)).
 
 # How to get started
 ! only tested on Windows.
