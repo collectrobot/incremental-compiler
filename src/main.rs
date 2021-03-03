@@ -19,7 +19,6 @@ enum ReplResult {
 fn print_grammer() {
 println!("
 expr ::= int | (read) | (- exp) | (+ exp exp)
-Rint ::= (Program '() exp)
 ");
 }
 
