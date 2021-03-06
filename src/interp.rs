@@ -8,20 +8,30 @@ trait Interpret {
     fn interp_r(&mut self, p: Program) -> Result<i64, String>;
 }
 
-// R1 -> exp ::= int | (read) | (- exp) | (+ exp exp)
-struct R1 {
+// Rlang -> exp ::= int | (read) | (- exp) | (+ exp exp)
+//               | var | (let ([var exp]) exp)
+struct Rlang {
     error: bool,
 }
 
-impl Interpret for R1 {
-    fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String> {
+impl Rlang {
+    fn new() -> Rlang {
+        Rlang {
+            error: false,
+        }
+    }
+}
 
+impl Interpret for Rlang {
+    fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String> {
         if self.error {
             return Err("Couldn't continue execution because of an error.".to_owned())
         }
 
         match e {
+
             AstNode::Int(n) => Ok(n),
+
             AstNode::Prim{op, args} => {
                 match &op[..] {
                     "+" => {
@@ -59,51 +69,7 @@ impl Interpret for R1 {
                         }
                 }
             },
-            AstNode::Error {msg, token} => {
-                Err(format!("{}{:?}", msg, token))
-            },
-            _ => {
-                Err(format!("Unknown ast node: {:?}", e))
-            } 
-        }
-    }
 
-    fn interp_r(&mut self, p: Program) -> Result<i64, String> {
-        self.interp_exp(&mut HashMap::new(), p.exp)
-    }
-}
-
-impl R1 {
-    fn new() -> R1 {
-        R1 {
-            error: false
-        }
-    }
-}
-
-// Rvar -> exp ::= int | (read) | (- exp) | (+ exp exp)
-//               | var | (let ([var exp]) exp)
-struct Rvar {
-    error: bool,
-    parent: R1
-}
-
-impl Rvar {
-    fn new() -> Rvar {
-        Rvar {
-            error: false,
-            parent: R1::new()
-        }
-    }
-}
-
-impl Interpret for Rvar {
-    fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String> {
-        if self.error {
-            return Err("Couldn't continue execution because of an error.".to_owned())
-        }
-
-        match e {
             AstNode::Let{ var, value, in_exp } => {
                 let already_exists = env.contains_key(&var);
 
@@ -125,8 +91,12 @@ impl Interpret for Rvar {
                 }
             },
 
+            AstNode::Error {msg, token} => {
+                Err(format!("{}{:?}", msg, token))
+            },
+
             _ => {
-                self.parent.interp_exp(env, e)
+                Err(format!("Unknown ast node: {:?}", e))
             },
         }
         
@@ -145,7 +115,7 @@ impl Interpreter {
 
     pub fn new() -> Interpreter {
         Interpreter {
-            interp: Box::new(Rvar::new())
+            interp: Box::new(Rlang::new())
         }
     }
 
