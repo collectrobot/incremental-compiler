@@ -88,6 +88,15 @@ struct Rvar {
     parent: R1
 }
 
+impl Rvar {
+    fn new() -> Rvar {
+        Rvar {
+            error: false,
+            parent: R1::new()
+        }
+    }
+}
+
 impl Interpret for Rvar {
     fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String> {
         if self.error {
@@ -108,7 +117,17 @@ impl Interpret for Rvar {
                 self.interp_exp(env, *in_exp)
             },
 
-            _ => self.parent.interp_exp(env, e),
+            AstNode::Var{ name } => {
+
+                match env.get(&name) {
+                    Some(n) => Ok(*n),
+                    _ => return Err(format!("{} is not defined!", name))
+                }
+            },
+
+            _ => {
+                self.parent.interp_exp(env, e)
+            },
         }
         
     }
@@ -119,21 +138,19 @@ impl Interpret for Rvar {
 }
 
 pub struct Interpreter {
-    versions: Vec<Box<dyn Interpret>>,
+    interp: Box<dyn Interpret>,
 }
 
 impl Interpreter {
 
     pub fn new() -> Interpreter {
-        let mut interp = Interpreter{versions: vec!()};
-
-        interp.versions.push(Box::new(R1::new()));
-
-        interp
+        Interpreter {
+            interp: Box::new(Rvar::new())
+        }
     }
 
     pub fn interpret(&mut self, p: Program) -> Result<i64, String> {
-        self.versions.pop().unwrap().interp_r(p)
+        self.interp.interp_r(p)
     }
 
 }
