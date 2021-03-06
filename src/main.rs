@@ -18,8 +18,9 @@ enum ReplResult {
 
 fn print_grammer() {
 println!("
-expr ::= int | (read) | (- exp) | (+ exp exp)
-       | var | (let ([var exp]) exp)
+expr  ::= int | (read) | (- exp) | (+ exp exp)
+        | var | (let ([var exp]) exp)
+rlang ::= exp
 ");
 }
 
