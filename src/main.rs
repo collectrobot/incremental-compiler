@@ -4,11 +4,14 @@ mod ast;
 mod parser;
 mod io;
 mod interp;
+mod intermediate;
+mod uniquify;
 
 use io::{get_line};
 use lexer::{Lexer};
 use parser::{Parser};
 use interp::{Interpreter};
+use uniquify::{uniquify_program};
 
 #[derive(PartialEq)]
 enum ReplResult {
@@ -68,9 +71,13 @@ fn main() -> std::io::Result<()> {
 
         let program = p.parse();
 
+        let uniquify_pass = uniquify_program(program);
+
+        println!("{:?}", uniquify_pass);
+
         let mut interp = Interpreter::new();
 
-        let result = interp.interpret(program);
+        let result = interp.interpret(uniquify_pass);
 
         let result = 
             match result {

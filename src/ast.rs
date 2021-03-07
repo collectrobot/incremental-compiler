@@ -9,6 +9,7 @@ pub enum AstNode {
     Error { msg: String, token: Token },
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct Program {
     pub info: (),
     pub exp: AstNode,
