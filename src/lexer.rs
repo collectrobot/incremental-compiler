@@ -167,6 +167,8 @@ impl Lexer {
                 '-'         => self.make_token(TokenType::Negate, 1),
                 '('         => self.make_token(TokenType::Lparen, 1),
                 ')'         => self.make_token(TokenType::Rparen, 1),
+                '['         => self.make_token(TokenType::Lbracket, 1),
+                ']'         => self.make_token(TokenType::Rbracket, 1),
                 '0'..='9'   => self.number(),
                 '\0'        => self.make_token(TokenType::EndOfFile, 1),
                 _           => {

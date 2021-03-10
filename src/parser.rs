@@ -22,6 +22,8 @@ pub struct Parser {
     current: usize,
     parse_error: bool,
 
+    previous: Token,
+
     symbol_table: HashMap<String, Symbol>,
 }
 
@@ -42,8 +44,27 @@ impl Parser {
         self.symbol_table.insert("let".to_owned(), Symbol::Keyword("let".to_owned()));
     }
 
+    fn rewind(&mut self, n: i64) -> Token {
+
+        let rewind = n;
+        let mut idx = (self.current as i64) - rewind;
+
+        if idx < 0 {
+            idx = 0;
+        } else if idx > (self.current as i64) {
+            idx = self.current as i64;
+        }
+
+        let token = self.tokens[(idx as usize)].clone();
+        self.current = idx as usize;
+
+        token
+    }
+
     fn next(&mut self) -> Token {
+        self.previous = self.peek(0);
         self.current += 1;
+
         let token = self.peek(0);
 
         token
@@ -73,8 +94,8 @@ impl Parser {
         self.peek(1).ttype == ttype
     }
 
-    fn expect(&mut self, lexeme: &str) -> bool {
-        if self.peek(0).lexeme == lexeme {
+    fn expect(&mut self, ttype: TokenType) -> bool {
+        if self.peek(0).ttype == ttype {
             self.next();
             true
         } else {
@@ -105,6 +126,12 @@ impl Parser {
                 tokens: tokens,
                 current: 0,
                 parse_error: false,
+                previous: Token {
+                    ttype: TokenType::Error,
+                    lexeme: "".to_string(),
+                    line: -1,
+                    col: -1,
+                },
                 symbol_table: HashMap::new(),
             };
 
@@ -134,35 +161,51 @@ impl Parser {
             // (let ([var exp]) (exp))
             "let" => {
 
-                if !self.expect("(") {
+                if !self.expect(TokenType::Lparen) {
                     return self.make_error_node("Expected a '('".to_owned(), 0)
                 }
 
-                if !self.expect("[") {
+                if !self.expect(TokenType::Lbracket) {
                     return self.make_error_node("Expected a '['".to_owned(), 0)
                 }
 
-                let token = self.current();
+                let mut binding_vec: Vec<(String, AstNode)> = Vec::new();
 
-                let var = token.lexeme;
+                let mut keep_parsing = true;
 
-                self.next();
+                while keep_parsing {
+                    // this should be the variable name e.g. "x"
+                    let token = self.current();
+                    let var = token.lexeme;
 
-                let value = Box::new(self.parse_expr());
-                
-                if !self.expect("]") {
-                    return self.make_error_node("Expected a ']'".to_owned(), 0)
+                    self.next();
+
+
+                    //let value = Box::new(self.parse_expr());
+                    let value = self.parse_expr();
+
+                    // done parsing
+                    if self.next_is(TokenType::Rbracket) {
+                        keep_parsing = false;
+                    } else if self.next_is(TokenType::Lbracket) { // more bindings to parse ']'
+                        self.next(); // '['
+                        self.next(); // <variable>
+                    } else {
+                        return self.make_error_node("Expected either a ']', or a '['.".to_owned(), 0)
+                    }
+
+                    binding_vec.push((var, value));
                 }
 
-                if !self.expect(")") {
+                if !self.expect(TokenType::Rparen) {
                     return self.make_error_node("Expected a ')'".to_owned(), 0)
                 }
+
 
                 let in_exp = Box::new(self.parse_expr());
 
                 AstNode::Let {
-                    var: var,
-                    value: value,
+                    bindings: binding_vec,
                     in_exp: in_exp
                 }
             },

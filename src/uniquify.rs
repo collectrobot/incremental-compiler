@@ -37,26 +37,36 @@ fn uniquify_exp(environments: &mut Vec<HashMap<String, String>>, e: AstNode) -> 
             }
         },
 
-        AstNode::Let { var, value, in_exp, } => {
+        AstNode::Let { bindings, in_exp, } => {
 
             environments.push(HashMap::new());
 
             let last = environments.len()-1;
-            let current_env = environments.get_mut(last).unwrap();
 
-            let new_name = var.clone() + "." + &(last+1).to_string();
+            let mut uniq_bindings: Vec<(String, AstNode)> = Vec::new();
 
-            current_env.insert( var.clone(), new_name.clone() );
+            for binding in bindings {
 
-            let unq_value = uniquify_exp(environments, *value);
+                let current_env = environments.get_mut(last).unwrap();
+
+                let the_var = binding.0;
+                let the_value = binding.1;
+
+                let new_name = the_var.clone() + "." + &(last+1).to_string();
+
+                current_env.insert( the_var.clone(), new_name.clone() );
+
+                let unq_value = uniquify_exp(environments, the_value);
+
+                uniq_bindings.push((new_name, unq_value));
+            }
 
             let unq_body = uniquify_exp(environments, *in_exp);
 
             environments.pop();
 
             AstNode::Let {
-                var: new_name,
-                value: Box::new(unq_value),
+                bindings: uniq_bindings,
                 in_exp: Box::new(unq_body)
             }
         },

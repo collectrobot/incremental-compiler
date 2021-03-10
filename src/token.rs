@@ -7,6 +7,8 @@ pub enum TokenType {
     EndOfFile,
     Lparen,
     Rparen,
+    Rbracket,
+    Lbracket,
     Error
 }
 

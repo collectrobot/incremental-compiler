@@ -70,14 +70,20 @@ impl Interpret for Rlang {
                 }
             },
 
-            AstNode::Let{ var, value, in_exp } => {
-                let already_exists = env.contains_key(&var);
+            AstNode::Let{ bindings, in_exp } => {
 
-                if already_exists {
-                    return Err(format!("{} is already defined!", var))
-                } else {
-                    let result = self.interp_exp(env, *value).unwrap();
-                    let _ = env.insert(var, result);
+                for binding in bindings {
+                    let the_var = binding.0;
+
+                    let already_exists = env.contains_key(&the_var);
+
+                    if already_exists {
+                        return Err(format!("{} is already defined!", the_var))
+                    } else {
+                        let the_value = binding.1;
+                        let result = self.interp_exp(env, the_value).unwrap();
+                        let _ = env.insert(the_var, result);
+                    }
                 }
 
                 self.interp_exp(env, *in_exp)
