@@ -73,8 +73,6 @@ fn main() -> std::io::Result<()> {
 
         let uniquify_pass = uniquify_program(program);
 
-        println!("{:?}", uniquify_pass);
-
         let mut interp = Interpreter::new();
 
         let result = interp.interpret(uniquify_pass);
