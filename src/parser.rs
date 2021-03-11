@@ -180,18 +180,15 @@ impl Parser {
 
                     self.next();
 
+                    let value = self.parse_expr(); // an expression that is bound to x
 
-                    //let value = Box::new(self.parse_expr());
-                    let value = self.parse_expr();
-
-                    // done parsing
-                    if self.next_is(TokenType::Rbracket) {
-                        keep_parsing = false;
-                    } else if self.next_is(TokenType::Lbracket) { // more bindings to parse ']'
+                    if self.next_is(TokenType::Lbracket) {
+                        // we're at ']'
                         self.next(); // '['
-                        self.next(); // <variable>
+                        self.next(); // begining of loop expects a variable
                     } else {
-                        return self.make_error_node("Expected either a ']', or a '['.".to_owned(), 0)
+                        self.next(); // skip ']'
+                        keep_parsing = false;
                     }
 
                     binding_vec.push((var, value));
