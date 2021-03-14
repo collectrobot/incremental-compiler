@@ -37,7 +37,7 @@ fn uniquify_exp(environments: &mut Vec<HashMap<String, String>>, e: AstNode) -> 
             }
         },
 
-        AstNode::Let { bindings, in_exp, } => {
+        AstNode::Let { bindings, body, } => {
 
             environments.push(HashMap::new());
 
@@ -61,13 +61,13 @@ fn uniquify_exp(environments: &mut Vec<HashMap<String, String>>, e: AstNode) -> 
                 uniq_bindings.push((new_name, unq_value));
             }
 
-            let unq_body = uniquify_exp(environments, *in_exp);
+            let unq_body = uniquify_exp(environments, *body);
 
             environments.pop();
 
             AstNode::Let {
                 bindings: uniq_bindings,
-                in_exp: Box::new(unq_body)
+                body: Box::new(unq_body)
             }
         },
 

@@ -70,7 +70,7 @@ impl Interpret for Rlang {
                 }
             },
 
-            AstNode::Let{ bindings, in_exp } => {
+            AstNode::Let{ bindings, body } => {
 
                 for binding in bindings {
                     let the_var = binding.0;
@@ -86,7 +86,7 @@ impl Interpret for Rlang {
                     }
                 }
 
-                self.interp_exp(env, *in_exp)
+                self.interp_exp(env, *body)
             },
 
             AstNode::Var{ name } => {

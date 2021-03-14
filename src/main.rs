@@ -6,12 +6,14 @@ mod io;
 mod interp;
 mod intermediate;
 mod uniquify;
+mod decomplify;
 
 use io::{get_line};
 use lexer::{Lexer};
 use parser::{Parser};
 use interp::{Interpreter};
 use uniquify::{uniquify_program};
+use decomplify::{decomplify_program};
 
 #[derive(PartialEq)]
 enum ReplResult {
@@ -69,13 +71,17 @@ fn main() -> std::io::Result<()> {
 
         let mut p = Parser::new(tokens.clone());
 
-        let program = p.parse();
+        let mut program = p.parse();
 
-        let uniquify_pass = uniquify_program(program);
+        program = uniquify_program(program);
+
+        program = decomplify_program(program);
 
         let mut interp = Interpreter::new();
 
-        let result = interp.interpret(uniquify_pass);
+        println!("{:?}", program);
+
+        let result = interp.interpret(program);
 
         let result = 
             match result {

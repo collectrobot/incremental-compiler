@@ -199,11 +199,11 @@ impl Parser {
                 }
 
 
-                let in_exp = Box::new(self.parse_expr());
+                let body = Box::new(self.parse_expr());
 
                 AstNode::Let {
                     bindings: binding_vec,
-                    in_exp: in_exp
+                    body: body
                 }
             },
             _ => {
