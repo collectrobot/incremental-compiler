@@ -24,9 +24,9 @@ impl Rco {
         new_tmp_var
     }
 
-    fn rco_atom(&mut self, e: AstNode, env: &mut HashMap<String, AstNode>) -> AstNode {
+    fn rco_atom(&mut self, e: AstNode, bindings: &mut Vec<(String, AstNode)>) -> AstNode {
 
-        match e {
+        match &e {
             AstNode::Int(_) => {
                 e
             },
@@ -48,11 +48,11 @@ impl Rco {
                         let new_tmp = self.tmp();
 
                         let bound_to = AstNode::Prim {
-                            op: op,
-                            args: args
+                            op: op.to_owned(),
+                            args: args.to_owned()
                         };
 
-                        env.insert(new_tmp.clone(), bound_to);
+                        bindings.push((new_tmp.clone(), bound_to));
 
                         AstNode::Var {
                             name: new_tmp,
@@ -60,7 +60,17 @@ impl Rco {
 
                     },
 
-                    _ => unreachable!()
+                    _ => {
+
+                        let new_tmp = self.tmp();
+                        let expr = self.rco_expr(e, bindings);
+
+                        bindings.push((new_tmp.clone(), expr));
+
+                        AstNode::Var {
+                            name: new_tmp
+                        }
+                    }
                 }
             },
 
@@ -70,9 +80,9 @@ impl Rco {
         }
     }
 
-    fn rco_expr(&mut self, e: AstNode, env: &mut HashMap<String, AstNode>) -> AstNode {
+    fn rco_expr(&mut self, e: AstNode, bindings: &mut Vec<(String, AstNode)>) -> AstNode {
 
-        match e {
+        match &e {
             AstNode::Int(_) => {
                 e
             }
@@ -92,31 +102,34 @@ impl Rco {
 
                         let mut let_bindings: Vec<(String, AstNode)> = vec!();
 
-                        let lhand = self.rco_atom(args[0].clone(), env);
+                        let lhand = self.rco_atom(args[0].clone(), bindings);
+                        let rhand = self.rco_atom(args[1].clone(), bindings);
 
-                        match &lhand {
-                            AstNode::Int(_) => {},
+                        let ast_array: [&AstNode;2] = [&lhand, &rhand];
 
-                            AstNode::Var { name } => {
-                                let_bindings.push(
-                                    (name.clone(), env[name].clone())
-                                )
-                            },
+                        for node in &ast_array {
+                            match node {
+                                AstNode::Int(_) => {},
 
-                            _ => unreachable!()
-                        }
+                                AstNode::Var { name } => {
+                                    for binding in  &mut *bindings {
+                                        if binding.0 == *name {
 
-                        let rhand = self.rco_atom(args[1].clone(), env);
-                        match &rhand {
-                            AstNode::Int(_) => {},
+                                            let_bindings.push(
+                                                (name.clone(), binding.1.clone())
+                                            );
 
-                            AstNode::Var { name } => {
-                                let_bindings.push(
-                                    (name.clone(), env[name].clone())
-                                )
-                            },
+                                            break;
+                                        }
+                                    }
 
-                            _ => unreachable!()
+                                },
+
+                                _ => {
+                                    println!("{:?}", ast_array);
+                                    unreachable!()
+                                }
+                            }
                         }
 
                         AstNode::Let {
@@ -143,7 +156,7 @@ impl Rco {
     }
 
     pub fn decomplify(&mut self, p: Program) -> AstNode {
-        self.rco_expr(p.exp, &mut HashMap::new())
+        self.rco_expr(p.exp, &mut Vec::new())
     }
 }
 
