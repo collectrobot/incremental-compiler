@@ -43,7 +43,7 @@ impl Rco {
             AstNode::Prim { op, args } => {
 
                 match &op[..] {
-                    "read" => {
+                    "read" | "-" => {
                         // need to bind the read to a variable
                         let new_tmp = self.tmp();
 
@@ -107,17 +107,22 @@ impl Rco {
 
                         let ast_array: [&AstNode;2] = [&lhand, &rhand];
 
+                        let mut was_atomized = false;
+
                         for node in &ast_array {
                             match node {
                                 AstNode::Int(_) => {},
 
                                 AstNode::Var { name } => {
+
                                     for binding in  &mut *bindings {
                                         if binding.0 == *name {
 
                                             let_bindings.push(
                                                 (name.clone(), binding.1.clone())
                                             );
+
+                                            was_atomized = true;
 
                                             break;
                                         }
@@ -132,14 +137,18 @@ impl Rco {
                             }
                         }
 
-                        AstNode::Let {
-                            bindings: let_bindings,
-                            body: Box::new(
-                                AstNode::Prim {
-                                    op: "+".to_owned(),
-                                    args: vec!(lhand, rhand)
-                                }
-                            )
+                        if was_atomized {
+                            AstNode::Let {
+                                bindings: let_bindings,
+                                body: Box::new(
+                                    AstNode::Prim {
+                                        op: "+".to_owned(),
+                                        args: vec!(lhand, rhand)
+                                    }
+                                )
+                            }
+                        } else {
+                            e
                         }
                     },
 
