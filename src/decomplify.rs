@@ -5,12 +5,14 @@ use std::collections::HashMap;
 
 struct Rco {
     num: i64,
+    env: Vec<(String, AstNode)>,
 }
 
 impl Rco {
     pub fn new() -> Rco {
         Rco {
             num: 0,
+            env: vec!()
         }
     }
 
@@ -24,18 +26,42 @@ impl Rco {
         new_tmp_var
     }
 
-    fn rco_atom(&mut self, e: AstNode, bindings: &mut Vec<(String, AstNode)>) -> AstNode {
+    fn find_var(&self, find: &String) -> bool {
+        for binding in &self.env {
+            if binding.0 == *find {
+                return true
+            }
+        }
+
+        false
+    }
+
+    fn get(&self, find: &String) -> Option<AstNode> {
+        for binding in &self.env {
+            if binding.0 == *find {
+                return Some(binding.1.clone())
+            }
+        }
+
+        return None
+    }
+
+    fn env_set(&mut self, name: String, expr: AstNode) {
+        self.env.push((name, expr));
+    }
+
+    fn rco_atom(&mut self, e: AstNode) -> (bool, AstNode) {
 
         match &e {
             AstNode::Int(_) => {
-                e
+                (false, e)
             },
 
             AstNode::Var { .. } => {
-                e
+                (false, e)
             },
 
-            AstNode::Let { bindings, body } => {
+            AstNode::Let { .. } => {
 
                 unreachable!()
             },
@@ -52,24 +78,24 @@ impl Rco {
                             args: args.to_owned()
                         };
 
-                        bindings.push((new_tmp.clone(), bound_to));
+                        self.env_set(new_tmp.clone(), bound_to);
 
-                        AstNode::Var {
+                        (true, AstNode::Var {
                             name: new_tmp,
-                        }
+                        })
 
                     },
 
                     _ => {
 
                         let new_tmp = self.tmp();
-                        let expr = self.rco_expr(e, bindings);
+                        let expr = self.rco_expr(e);
 
-                        bindings.push((new_tmp.clone(), expr));
+                        self.env_set(new_tmp.clone(), expr);
 
-                        AstNode::Var {
+                        (true, AstNode::Var {
                             name: new_tmp
-                        }
+                        })
                     }
                 }
             },
@@ -80,7 +106,7 @@ impl Rco {
         }
     }
 
-    fn rco_expr(&mut self, e: AstNode, bindings: &mut Vec<(String, AstNode)>) -> AstNode {
+    fn rco_expr(&mut self, e: AstNode) -> AstNode {
 
         match &e {
             AstNode::Int(_) => {
@@ -91,49 +117,110 @@ impl Rco {
                 e
             },
 
+            AstNode::Let { bindings, body } => {
+
+                let original_bindings = bindings.clone();
+
+                let mut untouched_bindings = vec!();
+
+                /*
+                    this will contain new bindings that are created when
+                    the exp in the let binding was atomized
+
+                    the original expression will be turned into a new let expression
+
+                    i.e. let [x (+ 2 (-10))] will be turned into
+
+                    let [tmp.0 (-10)] [x (+ 2 tmp.0)]
+
+                */
+                let mut changed_bindings: Vec<(String, AstNode)> = Vec::new();
+
+                // check if any of the existing bindings need to be atomized
+                for i in 0..original_bindings.len() {
+
+                    let current_binding = original_bindings[i].clone();
+
+                    let maybe_new_binding = self.rco_expr(current_binding.1);
+
+                    match maybe_new_binding {
+
+                        // a tmp binding was needed because of atomization
+                        AstNode::Let { mut bindings, body } => {
+
+                            let var_name = current_binding.0;
+
+                            changed_bindings.append(&mut bindings);
+                            changed_bindings.push(
+                                (var_name, *body)
+                            );
+                        }
+
+                        // nothing needed to be done, keep the old binding as it was
+                        _ => {
+                            untouched_bindings.push(original_bindings[i].clone());
+                        }
+                    }
+                }
+
+                let new_body = self.rco_expr(*body.clone());
+
+                changed_bindings.append(&mut untouched_bindings);
+
+                let new_node =
+                    AstNode::Let {
+                        bindings: changed_bindings,
+                        body: Box::new(new_body),
+                    };
+
+                new_node
+            },
+
             AstNode::Prim { op, args } => {
 
                 match &op[..] {
-                    "read" => {
-                        AstNode::Prim{op:"read".to_owned(),args:vec!()}
+                    "read" | "-" => {
+                        e
                     },
 
                     "+" => {
 
                         let mut let_bindings: Vec<(String, AstNode)> = vec!();
 
-                        let lhand = self.rco_atom(args[0].clone(), bindings);
-                        let rhand = self.rco_atom(args[1].clone(), bindings);
+                        let lhand = self.rco_atom(args[0].clone());
+                        let rhand = self.rco_atom(args[1].clone());
 
-                        let ast_array: [&AstNode;2] = [&lhand, &rhand];
+                        let results = vec!(&lhand, &rhand);
 
                         let mut was_atomized = false;
 
-                        for node in &ast_array {
+                        for node in &results {
                             match node {
-                                AstNode::Int(_) => {},
+                                (_, AstNode::Int(_)) => {},
 
-                                AstNode::Var { name } => {
+                                (atm, AstNode::Var { name }) => {
 
-                                    for binding in  &mut *bindings {
-                                        if binding.0 == *name {
+                                    if *atm {
+                                        match self.get(name) {
+                                            Some(expr) => {
+                                                let_bindings.push(
+                                                    (name.clone(), expr)
+                                                );
 
-                                            let_bindings.push(
-                                                (name.clone(), binding.1.clone())
-                                            );
+                                                was_atomized = true;
+                                            },
 
-                                            was_atomized = true;
-
-                                            break;
+                                            _ => {
+                                                println!("{}", name);
+                                                panic!("(internal)rco_expr [{}]: tmp var binding not found.", line!());
+                                            }
                                         }
                                     }
-
                                 },
 
                                 _ => {
-                                    println!("{:?}", ast_array);
                                     unreachable!()
-                                }
+                                },
                             }
                         }
 
@@ -143,7 +230,7 @@ impl Rco {
                                 body: Box::new(
                                     AstNode::Prim {
                                         op: "+".to_owned(),
-                                        args: vec!(lhand, rhand)
+                                        args: vec!(lhand.1, rhand.1)
                                     }
                                 )
                             }
@@ -165,7 +252,7 @@ impl Rco {
     }
 
     pub fn decomplify(&mut self, p: Program) -> AstNode {
-        self.rco_expr(p.exp, &mut Vec::new())
+        self.rco_expr(p.exp)
     }
 }
 
