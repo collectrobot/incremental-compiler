@@ -1,3 +1,7 @@
+/*
+    make it so that variables are numbered depending on the scope they're defined in
+    this allows variable shadowing
+*/
 
 use crate::ast::{AstNode, Program};
 

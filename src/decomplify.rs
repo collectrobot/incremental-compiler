@@ -1,7 +1,14 @@
+/*
+    this pass changes certain operations to only take atoms (literals or variables) as
+    their operands
 
+    i.e. (+ 2 (+ 2 2)) will be change to
+
+        let [tmp.0 (+ 2 2)]
+            (+ 2 tmp.0)
+
+*/
 use crate::ast::{AstNode, Program};
-
-use std::collections::HashMap;
 
 struct Rco {
     num: i64,

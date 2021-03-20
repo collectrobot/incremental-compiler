@@ -1,3 +1,8 @@
+/*
+    turn the ast into an intermediate language that makes the order of
+    execution explicit
+*/
+
 
 use crate::ast::{AstNode};
 

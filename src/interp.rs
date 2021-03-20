@@ -3,7 +3,7 @@ use crate::io::{get_line};
 
 use std::collections::HashMap;
 
-trait Interpret {
+trait InterpretAst {
     fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String>;
     fn interp_r(&mut self, p: Program) -> Result<i64, String>;
 }
@@ -22,7 +22,7 @@ impl Rlang {
     }
 }
 
-impl Interpret for Rlang {
+impl InterpretAst for Rlang {
     fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String> {
         if self.error {
             return Err("Couldn't continue execution because of an error.".to_owned())
@@ -114,19 +114,19 @@ impl Interpret for Rlang {
 }
 
 pub struct Interpreter {
-    interp: Box<dyn Interpret>,
+    ast: Box<dyn InterpretAst>,
 }
 
 impl Interpreter {
 
     pub fn new() -> Interpreter {
         Interpreter {
-            interp: Box::new(Rlang::new())
+            ast: Box::new(Rlang::new())
         }
     }
 
     pub fn interpret(&mut self, p: Program) -> Result<i64, String> {
-        self.interp.interp_r(p)
+        self.ast.interp_r(p)
     }
 
 }

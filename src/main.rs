@@ -4,7 +4,7 @@ mod ast;
 mod parser;
 mod io;
 mod interp;
-mod intermediate;
+mod explicate;
 mod uniquify;
 mod decomplify;
 
