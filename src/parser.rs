@@ -23,26 +23,9 @@ pub struct Parser {
     parse_error: bool,
 
     previous: Token,
-
-    symbol_table: HashMap<String, Symbol>,
 }
 
 impl Parser {
-
-    fn load_symbol_table(&mut self) {
-        self.symbol_table.insert("+".to_owned(), Symbol::Operator);
-        self.symbol_table.insert("-".to_owned(), Symbol::Operator);
-
-        self.symbol_table.insert("read".to_owned(),
-            Symbol::Function {
-                name: "read".to_owned(),
-                args: vec!(),
-                result: Value::I64(0)
-            }
-        );
-
-        self.symbol_table.insert("let".to_owned(), Symbol::Keyword("let".to_owned()));
-    }
 
     fn rewind(&mut self, n: i64) -> Token {
 
@@ -104,7 +87,6 @@ impl Parser {
     }
 
     fn current(&self) -> Token {
-        //self.tokens[self.current].clone()
         self.peek(0)
     } 
 
@@ -121,23 +103,17 @@ impl Parser {
     }
 
     pub fn new(tokens: Vec<Token>) -> Parser {
-        let mut p = 
-            Parser {
-                tokens: tokens,
-                current: 0,
-                parse_error: false,
-                previous: Token {
-                    ttype: TokenType::Error,
-                    lexeme: "".to_string(),
-                    line: -1,
-                    col: -1,
-                },
-                symbol_table: HashMap::new(),
-            };
-
-        p.load_symbol_table();
-
-        p
+        Parser {
+            tokens: tokens,
+            current: 0,
+            parse_error: false,
+            previous: Token {
+                ttype: TokenType::Error,
+                lexeme: "".to_string(),
+                line: -1,
+                col: -1,
+            },
+        }
     }
 
     fn parse_number(&mut self) -> AstNode {
