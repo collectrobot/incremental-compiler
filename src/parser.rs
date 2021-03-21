@@ -1,21 +1,7 @@
 use crate::token::{Token, TokenType};
-//use crate::lexer::{Lexer};
 use crate::ast::{Program, AstNode};
 
-use std::collections::HashMap;
-
-#[derive(PartialEq)]
-enum Value {
-    I64(i64), // value might be known
-}
-
-#[derive(PartialEq)]
-enum Symbol {
-    Operator,
-    Function {name: String, args: Vec<Value>, result: Value },
-    Keyword(String),
-    Variable { name: String, value: Value },
-}
+//use std::collections::HashMap;
 
 pub struct Parser {
     tokens: Vec<Token>,
