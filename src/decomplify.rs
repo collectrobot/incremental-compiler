@@ -43,7 +43,7 @@ impl Rco {
         false
     }
 
-    fn get(&self, find: &String) -> Option<AstNode> {
+    fn env_get(&self, find: &String) -> Option<AstNode> {
         for binding in &self.env {
             if binding.0 == *find {
                 return Some(binding.1.clone())
@@ -69,7 +69,6 @@ impl Rco {
             },
 
             AstNode::Let { .. } => {
-
                 unreachable!()
             },
 
@@ -208,7 +207,7 @@ impl Rco {
                                 (atm, AstNode::Var { name }) => {
 
                                     if *atm {
-                                        match self.get(name) {
+                                        match self.env_get(name) {
                                             Some(expr) => {
                                                 let_bindings.push(
                                                     (name.clone(), expr)
