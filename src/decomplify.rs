@@ -33,16 +33,6 @@ impl Rco {
         new_tmp_var
     }
 
-    fn find_var(&self, find: &String) -> bool {
-        for binding in &self.env {
-            if binding.0 == *find {
-                return true
-            }
-        }
-
-        false
-    }
-
     fn env_get(&self, find: &String) -> Option<AstNode> {
         for binding in &self.env {
             if binding.0 == *find {

@@ -4,9 +4,9 @@ mod ast;
 mod parser;
 mod io;
 mod interp;
-mod explicate;
 mod uniquify;
 mod decomplify;
+mod explicate;
 
 use io::{get_line};
 use lexer::{Lexer};
@@ -14,6 +14,7 @@ use parser::{Parser};
 use interp::{Interpreter};
 use uniquify::{uniquify_program};
 use decomplify::{decomplify_program};
+//use explicate::{explicate_control};
 
 #[derive(PartialEq)]
 enum ReplResult {
