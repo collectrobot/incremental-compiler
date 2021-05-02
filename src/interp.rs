@@ -3,31 +3,44 @@ use crate::io::{get_line};
 
 use std::collections::HashMap;
 
-trait InterpretAst {
-    fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String>;
-    fn interp_r(&mut self, p: Program) -> Result<i64, String>;
-}
-
 // Rlang -> exp ::= int | (read) | (- exp) | (+ exp exp)
 //               | var | (let ([var exp]) exp)
 struct Rlang {
-    error: bool,
+    interpretation_error: bool,
+    errors: Vec<String>
 }
 
 impl Rlang {
     fn new() -> Rlang {
         Rlang {
-            error: false,
+            interpretation_error: false,
+            errors: vec!()
         }
     }
-}
 
-impl InterpretAst for Rlang {
-    fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String> {
-        if self.error {
-            return Err("Couldn't continue execution because of an error.".to_owned())
+    pub fn interpret_success(&self) -> bool {
+        !self.interpretation_error
+    }
+
+    pub fn print_errors(&self) {
+        for error in &self.errors {
+            println!("{}", error);
         }
+    }
 
+    fn error(&mut self) {
+        self.interpretation_error = true
+    }
+
+    fn add_error(&mut self, string: String) -> Result <i64, String> {
+        self.error();
+
+        self.errors.push(string.clone());
+
+        Err(string)
+    }
+
+    fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String> {
         match e {
 
             AstNode::Int(n) => Ok(n),
@@ -39,12 +52,11 @@ impl InterpretAst for Rlang {
                         let arg2 = self.interp_exp(env, args[1].clone());
 
                         if arg1.is_err() {
-                            let thing = arg1.unwrap_err();
-                            return Err(thing)
+                            return self.add_error(arg1.unwrap_err())
                         }
 
                         if arg2.is_err() {
-                            return Err(arg2.unwrap_err())
+                            return self.add_error(arg2.unwrap_err())
                         }
 
                         Ok(arg1.unwrap() + arg2.unwrap())
@@ -60,12 +72,12 @@ impl InterpretAst for Rlang {
                         match input.parse::<i64>() {
                             Ok(n) => return Ok(n),
                             Err(error) => {
-                                return Err(format!("{}", error));
+                                return self.add_error(format!("{}", error))
                             }
                         };
                     },
-                    _ => {  self.error = true;
-                            Err(format!("Unrecognized operator in interp_exp: {}", op))
+                    _ => {  
+                            self.add_error(format!("Unrecognized operator in interp_exp: {}", op))
                         }
                 }
             },
@@ -78,7 +90,7 @@ impl InterpretAst for Rlang {
                     let already_exists = env.contains_key(&the_var);
 
                     if already_exists {
-                        return Err(format!("{} is already defined!", the_var))
+                        return self.add_error(format!("{} is already defined!", the_var))
                     } else {
                         let the_value = binding.1;
                         let result = self.interp_exp(env, the_value).unwrap();
@@ -93,16 +105,16 @@ impl InterpretAst for Rlang {
 
                 match env.get(&name) {
                     Some(n) => Ok(*n),
-                    _ => return Err(format!("{} is not defined!", name))
+                    _ => return self.add_error(format!("{} is not defined!", name))
                 }
             },
 
             AstNode::Error {msg, token} => {
-                Err(format!("{}{:?}", msg, token))
+                self.add_error(format!("{}{:?}", msg, token))
             },
 
             _ => {
-                Err(format!("Unknown ast node: {:?}", e))
+                self.add_error(format!("Unknown ast node: {:?}", e))
             },
         }
         
@@ -114,19 +126,29 @@ impl InterpretAst for Rlang {
 }
 
 pub struct Interpreter {
-    ast: Box<dyn InterpretAst>,
+    interpreter: Rlang,
+    program: Program
 }
 
 impl Interpreter {
 
-    pub fn new() -> Interpreter {
+    pub fn new(p: Program) -> Interpreter {
         Interpreter {
-            ast: Box::new(Rlang::new())
+            interpreter: Rlang::new(),
+            program: p 
         }
     }
 
-    pub fn interpret(&mut self, p: Program) -> Result<i64, String> {
-        self.ast.interp_r(p)
+    pub fn had_error(&self) -> bool {
+        !self.interpreter.interpret_success()
+    }
+
+    pub fn print_errors(&self) {
+        self.interpreter.print_errors()
+    }
+
+    pub fn interpret(&mut self) -> Result<i64, String> {
+        self.interpreter.interp_r(self.program.clone())
     }
 
 }

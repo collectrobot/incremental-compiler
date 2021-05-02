@@ -76,26 +76,31 @@ fn main() -> std::io::Result<()> {
 
         if !p.parse_success() {
             p.print_errors();
-
-        } else {
-            program = uniquify_program(program);
-
-            program = decomplify_program(program);
-
-            let mut interp = Interpreter::new();
-
-            println!("{:?}", program);
-
-            let result = interp.interpret(program);
-
-            let result = 
-                match result {
-                    Ok(n) => n.to_string(),
-                    Err(err) => err
-                };
-
-            println!("result: {}", result);
+            continue 'repl_loop;
         }
+
+        program = uniquify_program(program);
+
+        program = decomplify_program(program);
+
+        println!("{:?}", program);
+
+        let mut interp = Interpreter::new(program);
+
+        let result = interp.interpret();
+
+        if interp.had_error() {
+            interp.print_errors();
+            continue 'repl_loop;
+        }
+
+        let result = 
+            match result {
+                Ok(n) => n.to_string(),
+                Err(err) => err
+            };
+
+        println!("result: {}", result);
 
 
         /*
