@@ -66,7 +66,6 @@ impl Rco {
 
                 match &op[..] {
                     "read" | "-" => {
-                        // need to bind the read to a variable
                         let new_tmp = self.tmp();
 
                         let bound_to = AstNode::Prim {
