@@ -74,23 +74,29 @@ fn main() -> std::io::Result<()> {
 
         let mut program = p.parse();
 
-        program = uniquify_program(program);
+        if !p.parse_success() {
+            p.print_errors();
 
-        program = decomplify_program(program);
+        } else {
+            program = uniquify_program(program);
 
-        let mut interp = Interpreter::new();
+            program = decomplify_program(program);
 
-        println!("{:?}", program);
+            let mut interp = Interpreter::new();
 
-        let result = interp.interpret(program);
+            println!("{:?}", program);
 
-        let result = 
-            match result {
-                Ok(n) => n.to_string(),
-                Err(err) => err
-            };
+            let result = interp.interpret(program);
 
-        println!("result: {}", result);
+            let result = 
+                match result {
+                    Ok(n) => n.to_string(),
+                    Err(err) => err
+                };
+
+            println!("result: {}", result);
+        }
+
 
         /*
         for token in &tokens {

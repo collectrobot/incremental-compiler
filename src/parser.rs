@@ -6,7 +6,8 @@ use crate::ast::{Program, AstNode};
 pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
-    parse_error: bool,
+    parse_success: bool,
+    errors: Vec<AstNode>,
 
     previous: Token,
 }
@@ -76,23 +77,40 @@ impl Parser {
         self.peek(0)
     } 
 
+    pub fn parse_success(&self) -> bool {
+        self.parse_success
+    }
+
+    pub fn print_errors(&self) {
+        for error in &self.errors {
+            println!("{:?}", error);
+        }
+    }
+
     fn error(&mut self) {
-        self.parse_error = true;
+        self.parse_success = false;
     }
 
     fn make_error_node(&mut self, msg: String, offset: i64) -> AstNode {
         self.error();
-        AstNode::Error {
-            msg: msg,
-            token: self.peek(offset)
-        }
+
+        let error = 
+            AstNode::Error {
+                msg: msg,
+                token: self.peek(offset)
+            };
+
+        self.errors.push(error.clone());
+
+        error
     }
 
     pub fn new(tokens: Vec<Token>) -> Parser {
         Parser {
             tokens: tokens,
             current: 0,
-            parse_error: false,
+            parse_success: true,
+            errors: vec!(),
             previous: Token {
                 ttype: TokenType::Error,
                 lexeme: "".to_string(),
@@ -214,7 +232,7 @@ impl Parser {
                         AstNode::Error {..} => { // don't there's already an error message
                         },
                         _ => {
-                            node = self.make_error_node("Expected a ')', found: ".to_owned(), 0)
+                            node = self.make_error_node("Expected a closing ')', found: ".to_owned(), 0)
                         }
                     }
                 }
