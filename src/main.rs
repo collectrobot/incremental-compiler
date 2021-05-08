@@ -14,7 +14,7 @@ use parser::{Parser};
 use interp::{Interpreter};
 use uniquify::{uniquify_program};
 use decomplify::{decomplify_program};
-//use explicate::{explicate_control};
+use explicate::{explicate_control};
 
 #[derive(PartialEq)]
 enum ReplResult {
@@ -81,11 +81,12 @@ fn main() -> std::io::Result<()> {
 
         program = uniquify_program(program);
 
-        program = decomplify_program(program);
+        let for_ir = program.clone();
+        let ast_interpret = decomplify_program(program);
 
-        println!("{:?}", program);
+        println!("{:?}", ast_interpret);
 
-        let mut interp = Interpreter::new(program);
+        let mut interp = Interpreter::new(ast_interpret);
 
         let result = interp.interpret();
 
@@ -101,6 +102,10 @@ fn main() -> std::io::Result<()> {
             };
 
         println!("result: {}", result);
+
+        let intermediate_repr = explicate_control(for_ir);
+
+        println!("{:?}", intermediate_repr);
 
 
         /*

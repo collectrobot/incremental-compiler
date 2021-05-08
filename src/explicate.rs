@@ -43,6 +43,7 @@ pub enum Tail {
     Seq(Stmt, Box<Tail>),
 }
 
+#[derive(Debug)]
 pub struct CProgram {
     info: Vec<Atm>, // local variables
     labels: Vec<(String, Tail)>,
@@ -62,34 +63,56 @@ impl Explicator {
         }
     }
 
-    fn explicate_assign(&self, exp: AstNode) -> Tail {
+    fn explicate_tail(&mut self, exp: AstNode) {
+        match exp {
+            AstNode::Int(n) => {
+                self.out_acumulator.push(
+                    Tail::Return(
+                        Exp::Atm(
+                            Atm::Int(n)
+                        )
+                    )
+                )
+            },
 
-        Tail::Return(
-            Exp::Atm(
-                Atm::Int(32)
-            )
-        )
-    }
+            AstNode::Prim {op, args} => {
 
-    fn explicate_tail(&self, exp: AstNode) -> Tail {
+                match op {
+                    _ => {
+                        unreachable!();
+                    }
+                }
 
-        Tail::Return(
-            Exp::Atm(
-                Atm::Int(32)
-            )
-        )
-    }
+            },
 
-    pub fn explicate_control(program: Program) -> CProgram {
-        let mut explicator = Explicator::new();
-
-        explicator.explicate_tail(program.exp);
-        explicator.out_acumulator.reverse();
-
-        // start is the entry point in clang
-        CProgram {
-            info: explicator.local_vars,
-            labels: vec!(("start".to_owned(), explicator.out_acumulator[0].clone())),
+            _ => {
+                unreachable!();
+            }
         }
+    }
+
+    fn explicate_assign(&self, exp: AstNode) {
+        match exp {
+            AstNode::Let { bindings, body } => {
+
+            },
+
+            _ => {
+                unreachable!();
+            }
+        }
+    }
+}
+
+pub fn explicate_control(program: Program) -> CProgram {
+    let mut explicator = Explicator::new();
+
+    explicator.explicate_tail(program.exp);
+    explicator.out_acumulator.reverse();
+
+    // start is the entry point in clang
+    CProgram {
+        info: explicator.local_vars,
+        labels: vec!(("start".to_owned(), explicator.out_acumulator[0].clone())),
     }
 }
