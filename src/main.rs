@@ -8,6 +8,9 @@ mod uniquify;
 mod decomplify;
 mod explicate;
 
+#[macro_use]
+mod utility;
+
 use io::{get_line};
 use lexer::{Lexer};
 use parser::{Parser};
