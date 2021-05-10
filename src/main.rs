@@ -87,7 +87,7 @@ fn main() -> std::io::Result<()> {
         let for_ir = program.clone();
         let ast_interpret = decomplify_program(program);
 
-        println!("{:?}", ast_interpret);
+        println!("{:#?}", ast_interpret);
 
         let mut interp = Interpreter::new(ast_interpret);
 
@@ -104,11 +104,11 @@ fn main() -> std::io::Result<()> {
                 Err(err) => err
             };
 
-        println!("result: {}", result);
+        //println!("result: {}", result);
 
         let intermediate_repr = explicate_control(for_ir);
 
-        println!("{:?}", intermediate_repr);
+        println!("{:#?}", intermediate_repr);
 
 
         /*
