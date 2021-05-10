@@ -60,6 +60,21 @@ enum Arithmetic {
     Sub,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum ExtractKind {
+    AtmVar,
+    AtmConst,
+    BinaryOp,
+    UnaryOp,
+}
+
+#[derive(Debug, Clone)]
+struct ExtractResult {
+    kind: ExtractKind,
+    atom: Option<Atm>
+}
+
+
 impl Explicator {
 
     pub fn new() -> Explicator {
@@ -115,30 +130,47 @@ impl Explicator {
         }
     }
 
-    // returns an atom, and false if it's a var, true if it's a const
-    fn extract_atom(&mut self, exp: AstNode) -> (Atm, bool) {
+    // returns (Atm, bool) if an atom is found and false if it's a var, true if it's a const
+    // else an error in the case where an atom cannot be extracted directly
+    // for exmaple if the original expression is (+ (+ 2 2) 2), and extract_atom is called on (+ 2 2)
+    fn extract_atom(&mut self, exp: AstNode) -> ExtractResult {
         match &exp {
 
             AstNode::Prim { op, args } => {
+
                 match &op[..] {
+                    "+" => {
+                        ExtractResult {
+                            kind: ExtractKind::BinaryOp,
+                            atom: None
+                        }
+                    },
+
                     "-" => {
 
-                        let (the_atm, is_const) = self.extract_atom(args[0].clone());
+                        let the_atom = self.extract_atom(args[0].clone());
 
-                        if is_const {
-                            (self.arithm_atoms(
-                                Arithmetic::Sub,
-                                Atm::Int(0),
-                                the_atm
-                            ), is_const)
+                        match the_atom.kind {
+                            ExtractKind::AtmConst => {
+                                ExtractResult {
+                                    kind: ExtractKind::AtmConst,
+                                    atom: 
+                                        Some(self.arithm_atoms(
+                                            Arithmetic::Sub,
+                                            Atm::Int(0),
+                                            the_atom.atom.unwrap()
+                                        ))
+                                }
+                            },
 
-                        } else {
-                            (the_atm, is_const)
+                            _ => {
+                                the_atom
+                            }
                         }
                     },
 
                     _ => {
-                        println!("{}:{}: expected negation, got: '{:?}'",
+                        println!("{}:{}: unknown operator, got: '{:?}'",
                             crate::function!(),
                             line!(),
                             exp
@@ -149,10 +181,18 @@ impl Explicator {
             },
 
             AstNode::Int(n) => {
-                (Atm::Int(*n), true)
+                ExtractResult {
+                    kind: ExtractKind::AtmConst,
+                    atom: Some(Atm::Int(*n))
+                }
             },
             AstNode::Var{name} => {
-                (Atm::Var{name: name.clone()}, false)
+                ExtractResult {
+                    kind: ExtractKind::AtmVar,
+                    atom: Some(
+                        Atm::Var{name: name.clone()}
+                    )
+                }
             },
 
             _ => {
@@ -167,14 +207,14 @@ impl Explicator {
     }
 
     fn explicate_tail(&mut self, exp: AstNode) -> Tail {
-        match exp {
+        match &exp {
 
             AstNode::Var { name } => {
                 let return_node = 
                     Tail::Return (
                         Exp::Atm (
                             Atm::Var {
-                                name: name
+                                name: name.clone()
                             }
                         )
                     );
@@ -186,7 +226,7 @@ impl Explicator {
                 let return_node = 
                     Tail::Return (
                         Exp::Atm (
-                            Atm::Int(n)
+                            Atm::Int(*n)
                         )
                     );
 
@@ -195,7 +235,7 @@ impl Explicator {
 
             AstNode::Let { bindings, body } => {
 
-                let last_tail = self.explicate_tail(*body);
+                let last_tail = self.explicate_tail(*body.clone());
 
                 let assignments = 
                     bindings
@@ -219,10 +259,14 @@ impl Explicator {
                 match &op[..] {
                     "+" => {
 
-                        let (left_atom, left_is_const) = self.extract_atom(args[0].clone());
-                        let (right_atom, right_is_const) = self.extract_atom(args[1].clone());
+                        let maybe_right_atom = self.extract_atom(args[0].clone());
+                        let maybe_left_atom = self.extract_atom(args[1].clone());
 
-                        if left_is_const && right_is_const {
+                        let left_atom = maybe_left_atom.atom.unwrap();
+                        let right_atom = maybe_right_atom.atom.unwrap();
+
+                        if  maybe_right_atom.kind == ExtractKind::AtmConst &&
+                            maybe_left_atom.kind == ExtractKind::AtmConst {
                             Tail::Return (
                                 Exp::Atm(
                                     self.arithm_atoms(Arithmetic::Add, left_atom, right_atom)
@@ -239,7 +283,32 @@ impl Explicator {
                     },
 
                     "-" => {
-                        unreachable!();
+
+                        let atm = self.extract_atom(exp);
+
+                        if atm.kind == ExtractKind::AtmVar {
+                            Tail::Return (
+                                Exp::Atm (
+                                    atm.atom.unwrap()
+                                )
+                            )
+                        } else {
+                            Tail::Return (
+                                Exp::Prim {
+                                    op: "-".to_owned(),
+                                    args: vec!(atm.atom.unwrap())
+                                }
+                            )
+                        }
+                    },
+
+                    "read" => {
+                        Tail::Return (
+                            Exp::Prim {
+                                op: "read".to_owned(),
+                                args: vec!()
+                            }
+                        )
                     }
 
                     _ => {
@@ -262,8 +331,23 @@ impl Explicator {
 
     fn explicate_assign(&mut self, exp: AstNode, var: String, acc: Tail) -> Tail {
         match &exp {
+
             AstNode::Var { name } => {
-                unimplemented!();
+                
+                self.local_vars.push(var.clone());
+
+                Tail::Seq(
+                    Stmt::Assign(
+                        Atm::Var {name: var},
+                        Exp::Atm (
+                            Atm::Var {
+                                name: name.clone()
+                            }
+                        )
+                    ),
+                    Box::new(acc)
+                )
+
             },
 
             AstNode::Int(n) => {
@@ -282,12 +366,36 @@ impl Explicator {
             },
 
             AstNode::Let { bindings, body } => {
-                unimplemented!();
+
+                let body_assign = self.explicate_assign(*body.clone(), var, acc);
+
+                let assignments = 
+                    bindings
+                    .iter()
+                    .rev()
+                    .fold(
+                        body_assign,
+                        | tail, assign |
+                        self.explicate_assign(
+                            assign.1.clone(),
+                            assign.0.clone(),
+                            tail
+                        )
+                    );
+
+                assignments
+
             },
 
             AstNode::Prim { op, args } => {
 
                 match &op[..] {
+
+                    "+" => {
+
+                        unreachable!();
+                    },
+
                     "-" => {
                         self.local_vars.push(var.clone());
 
@@ -297,7 +405,7 @@ impl Explicator {
                                 Exp::Prim {
                                     op: "-".to_owned(),
                                     args: vec!(
-                                        self.extract_atom(args[0].clone()).0
+                                        self.extract_atom(args[0].clone()).atom.unwrap()
                                     )
                                 }
                             ),
