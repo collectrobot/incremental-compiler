@@ -50,8 +50,7 @@ pub struct CProgram {
 }
 
 struct Explicator {
-    //out_acumulator: Vec<Tail>, // this needs to be reversed when done, to get the right order
-    local_vars: Vec<String>, // a vector of Atm::Var
+    local_vars: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +78,6 @@ impl Explicator {
 
     pub fn new() -> Explicator {
         Explicator {
-            //out_acumulator: vec!(),
             local_vars: vec!(),
         }
     }
@@ -452,7 +450,6 @@ pub fn explicate_control(program: Program) -> CProgram {
     let mut explicator = Explicator::new();
 
     let instructions = explicator.explicate_tail(program.exp);
-    //explicator.out_acumulator.reverse();
 
     // start is the entry point in clang
     CProgram {
