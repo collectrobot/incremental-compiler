@@ -47,19 +47,30 @@ impl Rco {
         self.env.push((name, expr));
     }
 
+    // returns (true, AstNode) if whatever was passed in had to be atomized
     fn rco_atom(&mut self, e: AstNode) -> (bool, AstNode) {
 
         match &e {
+            // already an atom
             AstNode::Int(_) => {
                 (false, e)
             },
 
+            // already an atom
             AstNode::Var { .. } => {
                 (false, e)
             },
 
-            AstNode::Let { .. } => {
-                unreachable!()
+            // we need a tmp variable to bind the let expression to
+            AstNode::Let { bindings, body } => {
+                let new_tmp = self.tmp();
+                let expr = self.rco_expr(e);
+
+                self.env_set(new_tmp.clone(), expr);
+
+                (true, AstNode::Var {
+                    name: new_tmp
+                })
             },
 
             AstNode::Prim { op, args } => {
