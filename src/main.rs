@@ -16,7 +16,7 @@ use repl::{Repl};
 
 fn main() {
 
-    let repl = Repl::new();
+    let mut repl = Repl::new();
 
     let _ = repl.run();
 }

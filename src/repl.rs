@@ -20,7 +20,7 @@ enum ReplResult {
 struct ReplCommand {
     pub cmd: &'static str,
     pub help: &'static str,
-    pub action: fn (&Repl) -> ReplResult,
+    pub action: fn (&mut Repl) -> ReplResult,
 }
 
 pub struct Repl {
@@ -34,6 +34,32 @@ impl Repl {
     pub fn new() -> Self {
         let commands = vec!(
             ReplCommand { cmd: ":help", help: "show available commands", action: Repl::print_help },
+            ReplCommand {
+                cmd: ":show-ast",
+                help: "show the abstract syntax tree before execution",
+                action: |r | {
+                    if r.show_ast == true {
+                        r.show_ast = false;
+                    } else {
+                        r.show_ast = true;
+                    }
+
+                    ReplResult::KeepGoing
+                },
+            },
+            ReplCommand {
+                cmd: ":show-ir",
+                help: "show the intermediate representation before execution",
+                action: |r | {
+                    if r.show_ir == true {
+                        r.show_ir;
+                    } else {
+                        r.show_ir = true;
+                    }
+
+                    ReplResult::KeepGoing
+                },
+            },
             ReplCommand { cmd: ":grammer", help: "print the grammer", action: Repl::print_grammer },
             ReplCommand { cmd: ":quit", help: "exit the repl", action: Repl::quit }
         );
@@ -45,8 +71,7 @@ impl Repl {
         }
     }
 
-
-    fn print_grammer(&self) -> ReplResult {
+    fn print_grammer(&mut self) -> ReplResult {
         println!("
 expr  ::= int | (read) | ('-' exp) | ('+' exp exp)
         | var | (let ([var exp]+) exp)
@@ -56,11 +81,11 @@ rlang ::= exp
         ReplResult::KeepGoing
     }
 
-    fn quit(&self) -> ReplResult {
+    fn quit(&mut self) -> ReplResult {
         ReplResult::Stop
     }
 
-    fn print_help(&self) -> ReplResult {
+    fn print_help(&mut self) -> ReplResult {
 
         println!("");
         for cmd in &self.commands {
@@ -71,7 +96,7 @@ rlang ::= exp
         ReplResult::KeepGoing
     }
 
-    fn handle_repl_command(&self, command: &str) -> ReplResult {
+    fn handle_repl_command(&mut self, command: &str) -> ReplResult {
 
         let cmd = self.commands.iter().position(|&c| c.cmd == command);
 
@@ -86,7 +111,7 @@ rlang ::= exp
         }
     }
 
-    pub fn run(&self) -> std::io::Result<()> {
+    pub fn run(&mut self) -> std::io::Result<()> {
         let mut input: String;
         'repl_loop:loop {
 
@@ -121,6 +146,10 @@ rlang ::= exp
             let uniquified_program = uniquify_program(program);
 
             let decomplified_program = decomplify_program(uniquified_program);
+
+            if self.show_ast {
+                println!("{:#?}", decomplified_program);
+            }
 
             let mut interp = Interpreter::new(decomplified_program.clone());
 
