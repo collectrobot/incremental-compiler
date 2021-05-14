@@ -148,6 +148,7 @@ rlang ::= exp
             let decomplified_program = decomplify_program(uniquified_program);
 
             if self.show_ast {
+                println!("AST:");
                 println!("{:#?}", decomplified_program);
             }
 
