@@ -259,8 +259,8 @@ impl Explicator {
                 match &op[..] {
                     "+" => {
 
-                        let maybe_right_atom = self.extract_atom(args[0].clone());
-                        let maybe_left_atom = self.extract_atom(args[1].clone());
+                        let maybe_left_atom = self.extract_atom(args[0].clone());
+                        let maybe_right_atom = self.extract_atom(args[1].clone());
 
                         let left_atom = maybe_left_atom.atom.unwrap();
                         let right_atom = maybe_right_atom.atom.unwrap();
@@ -392,8 +392,21 @@ impl Explicator {
                 match &op[..] {
 
                     "+" => {
+                        self.local_vars.push(var.clone());
 
-                        unreachable!();
+                        Tail::Seq(
+                            Stmt::Assign(
+                                Atm::Var { name: var },
+                                Exp::Prim {
+                                    op: "+".to_owned(),
+                                    args: vec!(
+                                        self.extract_atom(args[0].clone()).atom.unwrap(),
+                                        self.extract_atom(args[1].clone()).atom.unwrap(),
+                                    )
+                                }
+                            ),
+                            Box::new(acc)
+                        )
                     },
 
                     "-" => {

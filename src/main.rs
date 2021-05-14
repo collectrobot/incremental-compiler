@@ -75,21 +75,18 @@ fn main() -> std::io::Result<()> {
 
         let mut p = Parser::new(tokens.clone());
 
-        let mut program = p.parse();
+        let program = p.parse();
 
         if !p.parse_success() {
             p.print_errors();
             continue 'repl_loop;
         }
 
-        program = uniquify_program(program);
+        let uniquified_program = uniquify_program(program);
 
-        let for_ir = program.clone();
-        let ast_interpret = decomplify_program(program);
+        let decomplified_program = decomplify_program(uniquified_program);
 
-        println!("{:#?}", ast_interpret);
-
-        let mut interp = Interpreter::new(ast_interpret);
+        let mut interp = Interpreter::new(decomplified_program.clone());
 
         let result = interp.interpret();
 
@@ -104,10 +101,11 @@ fn main() -> std::io::Result<()> {
                 Err(err) => err
             };
 
-        //println!("result: {}", result);
+        println!("result: {}\n", result);
 
-        let intermediate_repr = explicate_control(for_ir);
+        let intermediate_repr = explicate_control(decomplified_program);
 
+        println!("IR:");
         println!("{:#?}", intermediate_repr);
 
 
