@@ -29,7 +29,7 @@ fn print_grammer() {
 println!("
 expr  ::= int | (read) | ('-' exp) | ('+' exp exp)
         | var | (let ([var exp]+) exp)
-rlang ::= exp
+rlang ::= (exp)
 ");
 }
 
@@ -101,7 +101,7 @@ fn main() -> std::io::Result<()> {
                 Err(err) => err
             };
 
-        println!("result: {}\n", result);
+        println!("Result of interpreting the AST: {}\n", result);
 
         let intermediate_repr = explicate_control(decomplified_program);
 
