@@ -62,7 +62,7 @@ impl Rco {
             },
 
             // we need a tmp variable to bind the let expression to
-            AstNode::Let { bindings, body } => {
+            AstNode::Let { .. } => {
                 let new_tmp = self.tmp();
                 let expr = self.rco_expr(e);
 
@@ -76,24 +76,7 @@ impl Rco {
             AstNode::Prim { op, args } => {
 
                 match &op[..] {
-                    "read" | "-" => {
-                        let new_tmp = self.tmp();
-
-                        let bound_to = AstNode::Prim {
-                            op: op.to_owned(),
-                            args: args.to_owned()
-                        };
-
-                        self.env_set(new_tmp.clone(), bound_to);
-
-                        (true, AstNode::Var {
-                            name: new_tmp,
-                        })
-
-                    },
-
-                    _ => {
-
+                    "+" => {
                         let new_tmp = self.tmp();
                         let expr = self.rco_expr(e);
 
@@ -102,6 +85,21 @@ impl Rco {
                         (true, AstNode::Var {
                             name: new_tmp
                         })
+                    },
+
+                    "read" | "-" => {
+                        let new_tmp = self.tmp();
+
+                        self.env_set(new_tmp.clone(), e);
+
+                        (true, AstNode::Var {
+                            name: new_tmp,
+                        })
+
+                    },
+
+                    _ => {
+                        unreachable!();
                     }
                 }
             },
@@ -217,8 +215,7 @@ impl Rco {
                                             },
 
                                             _ => {
-                                                println!("{}", name);
-                                                panic!("(internal)rco_expr [{}]: tmp var binding not found.", line!());
+                                                panic!("rco_expr:{}: tmp var '{}' binding not found.", line!(), name);
                                             }
                                         }
                                     }
