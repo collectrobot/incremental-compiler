@@ -4,9 +4,7 @@
 */
 
 
-use crate::ast::{AstNode, Program};
-
-use std::collections::HashMap;
+use crate::frontend::ast::{AstNode, Program};
 
 /*
 

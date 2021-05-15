@@ -1,8 +1,6 @@
 use std::vec;
 
-use crate::token;
-
-use token::{Token, TokenType};
+use super::token::{Token, TokenType};
 
 pub struct Lexer {
     source_code: Vec<char>,
@@ -41,7 +39,7 @@ fn is_id(c: char) -> bool {
 
 impl Lexer {
 
-    fn make_token(&mut self, t: TokenType, len: usize) -> token::Token {
+    fn make_token(&mut self, t: TokenType, len: usize) -> Token {
 
         let start_pos = self.position;
         let end_pos = 
@@ -52,7 +50,7 @@ impl Lexer {
             };
 
         let token = 
-            token::Token {
+            Token {
                 ttype: t,
                 lexeme: self.to_string(start_pos, end_pos),
                 col: self.column,
@@ -117,7 +115,7 @@ impl Lexer {
         }
     }
 
-    fn number(&mut self) -> token::Token {
+    fn number(&mut self) -> Token {
 
         let start = self.position;
         let col = self.column;
@@ -128,7 +126,7 @@ impl Lexer {
             c = self.advance();
         }
 
-        token::Token {
+        Token {
             ttype: TokenType::Number,
             lexeme: self.to_string(start, self.position),
             col: col,
@@ -136,7 +134,7 @@ impl Lexer {
         }
     }
 
-    fn identifier(&mut self) -> token::Token {
+    fn identifier(&mut self) -> Token {
         let start = self.position;
         let col = self.column;
         let line = self.line;
@@ -146,7 +144,7 @@ impl Lexer {
             c = self.advance();
         }
 
-        token::Token {
+        Token {
             ttype: TokenType::Identifier,
             lexeme: self.to_string(start, self.position),
             col: col,
@@ -154,7 +152,7 @@ impl Lexer {
         }
     }
 
-    fn next_token(&mut self) -> token::Token {
+    fn next_token(&mut self) -> Token {
 
         self.skip_whitespace();
 

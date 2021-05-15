@@ -1,4 +1,4 @@
-use crate::ast::{Program, AstNode};
+use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
 
 use std::collections::HashMap;

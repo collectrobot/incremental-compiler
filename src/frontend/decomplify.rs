@@ -8,7 +8,7 @@
             (+ 2 tmp.0)
 
 */
-use crate::ast::{AstNode, Program};
+use super::ast::{AstNode, Program};
 
 struct Rco {
     num: i64,

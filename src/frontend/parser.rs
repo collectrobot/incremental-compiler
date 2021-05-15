@@ -1,5 +1,5 @@
-use crate::token::{Token, TokenType};
-use crate::ast::{Program, AstNode};
+use super::token::{Token, TokenType};
+use super::ast::{AstNode, Program};
 
 //use std::collections::HashMap;
 

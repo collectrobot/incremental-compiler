@@ -3,7 +3,7 @@
     this allows variable shadowing
 */
 
-use crate::ast::{AstNode, Program};
+use super::ast::{AstNode, Program};
 
 use std::collections::HashMap;
 

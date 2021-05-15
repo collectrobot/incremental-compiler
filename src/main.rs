@@ -1,13 +1,8 @@
 mod repl;
-mod lexer;
-mod token;
-mod ast;
-mod parser;
 mod io;
-mod interp;
-mod uniquify;
-mod decomplify;
-mod explicate;
+mod backend;
+mod frontend;
+mod ir;
 
 #[macro_use]
 mod utility;

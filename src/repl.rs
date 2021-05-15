@@ -1,14 +1,13 @@
-use crate::lexer::{Lexer};
-use crate::parser::{Parser};
-use crate::interp::{Interpreter};
-use crate::uniquify::{uniquify_program};
-use crate::decomplify::{decomplify_program};
-use crate::explicate::{explicate_control};
+use crate::frontend::lexer::{Lexer};
+use crate::frontend::parser::{Parser};
+use crate::backend::interp::{Interpreter};
+use crate::frontend::uniquify::{uniquify_program};
+use crate::frontend::decomplify::{decomplify_program};
+use crate::ir::explicate::{explicate_control};
 
 use crate::io::{get_line};
 
 use std::iter::Iterator;
-use std::collections::HashMap;
 
 #[derive(PartialEq)]
 enum ReplResult {
