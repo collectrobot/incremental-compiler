@@ -6,6 +6,9 @@
 
 use crate::frontend::ast::{AstNode, Program};
 
+use std::collections::HashMap;
+use std::rc::Rc;
+
 /*
 
 Atm   ::= (Int int) | (Var var)
@@ -21,13 +24,13 @@ info will be a list of local variables
 #[derive(Clone, Debug)]
 pub enum Atm {
     Int(i64),
-    Var { name: String },
+    Var { name: Rc<String> },
 }
 
 #[derive(Clone, Debug)]
 pub enum Exp {
     Atm(Atm),
-    Prim { op: String, args: Vec<Atm> },
+    Prim { op: Rc<String>, args: Vec<Atm> },
 }
 
 #[derive(Clone, Debug)]
@@ -43,12 +46,12 @@ pub enum Tail {
 
 #[derive(Debug)]
 pub struct CProgram {
-    info: Vec<String>, // local variables
-    labels: Vec<(String, Tail)>,
+    info: Vec<Rc<String>>, // local variables
+    labels: HashMap<Rc<String>, Tail>,
 }
 
 struct Explicator {
-    local_vars: Vec<String>,
+    local_vars: Vec<Rc<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -271,7 +274,7 @@ impl Explicator {
                         } else {
                             Tail::Return (
                                 Exp::Prim {
-                                    op: "+".to_owned(),
+                                    op: op.clone(),
                                     args: vec!(left_atom, right_atom)
                                 }
                             )
@@ -280,7 +283,7 @@ impl Explicator {
 
                     "-" => {
 
-                        let atm = self.extract_atom(exp);
+                        let atm = self.extract_atom(exp.clone());
 
                         if atm.kind == ExtractKind::AtmVar {
                             Tail::Return (
@@ -291,7 +294,7 @@ impl Explicator {
                         } else {
                             Tail::Return (
                                 Exp::Prim {
-                                    op: "-".to_owned(),
+                                    op: op.clone(),
                                     args: vec!(atm.atom.unwrap())
                                 }
                             )
@@ -301,7 +304,7 @@ impl Explicator {
                     "read" => {
                         Tail::Return (
                             Exp::Prim {
-                                op: "read".to_owned(),
+                                op: op.clone(),
                                 args: vec!()
                             }
                         )
@@ -325,7 +328,7 @@ impl Explicator {
         }
     }
 
-    fn explicate_assign(&mut self, exp: AstNode, var: String, acc: Tail) -> Tail {
+    fn explicate_assign(&mut self, exp: AstNode, var: Rc<String>, acc: Tail) -> Tail {
         match &exp {
 
             AstNode::Var { name } => {
@@ -394,7 +397,7 @@ impl Explicator {
                             Stmt::Assign(
                                 Atm::Var { name: var },
                                 Exp::Prim {
-                                    op: "+".to_owned(),
+                                    op: op.clone(),
                                     args: vec!(
                                         self.extract_atom(args[0].clone()).atom.unwrap(),
                                         self.extract_atom(args[1].clone()).atom.unwrap(),
@@ -412,7 +415,7 @@ impl Explicator {
                             Stmt::Assign(
                                 Atm::Var{name: var},
                                 Exp::Prim {
-                                    op: "-".to_owned(),
+                                    op: op.clone(),
                                     args: vec!(
                                         self.extract_atom(args[0].clone()).atom.unwrap()
                                     )
@@ -449,9 +452,12 @@ pub fn explicate_control(program: Program) -> CProgram {
 
     let instructions = explicator.explicate_tail(program.exp);
 
+    let mut labels = HashMap::new();
+    labels.insert(Rc::new("start".to_owned()), instructions);
+
     // start is the entry point in clang
     CProgram {
         info: explicator.local_vars,
-        labels: vec!(("start".to_owned(), instructions)),
+        labels: labels,
     }
 }

@@ -8,11 +8,14 @@
             (+ 2 tmp.0)
 
 */
+
+use std::rc::Rc;
+
 use super::ast::{AstNode, Program};
 
 struct Rco {
     num: i64,
-    env: Vec<(String, AstNode)>,
+    env: Vec<(Rc<String>, AstNode)>,
 }
 
 impl Rco {
@@ -23,19 +26,19 @@ impl Rco {
         }
     }
 
-    fn tmp(&mut self) -> String {
+    fn tmp(&mut self) -> Rc<String> {
         let current = self.num;
 
         let new_tmp_var = "tmp.".to_owned() + &current.to_string();
 
         self.num += 1;
 
-        new_tmp_var
+        Rc::new(new_tmp_var)
     }
 
     fn env_get(&self, find: &String) -> Option<AstNode> {
         for binding in &self.env {
-            if binding.0 == *find {
+            if **binding.0 == *find {
                 return Some(binding.1.clone())
             }
         }
@@ -43,7 +46,7 @@ impl Rco {
         return None
     }
 
-    fn env_set(&mut self, name: String, expr: AstNode) {
+    fn env_set(&mut self, name: Rc<String>, expr: AstNode) {
         self.env.push((name, expr));
     }
 
@@ -138,7 +141,7 @@ impl Rco {
                     let [tmp.0 (-10)] [x (+ 2 tmp.0)]
 
                 */
-                let mut changed_bindings: Vec<(String, AstNode)> = Vec::new();
+                let mut changed_bindings: Vec<(Rc<String>, AstNode)> = Vec::new();
 
                 // check if any of the existing bindings need to be atomized
                 for i in 0..original_bindings.len() {
@@ -189,7 +192,7 @@ impl Rco {
 
                     "+" => {
 
-                        let mut let_bindings: Vec<(String, AstNode)> = vec!();
+                        let mut let_bindings: Vec<(Rc<String>, AstNode)> = vec!();
 
                         let lhand = self.rco_atom(args[0].clone());
                         let rhand = self.rco_atom(args[1].clone());
@@ -205,7 +208,7 @@ impl Rco {
                                 (atm, AstNode::Var { name }) => {
 
                                     if *atm {
-                                        match self.env_get(name) {
+                                        match self.env_get(&(**name)) {
                                             Some(expr) => {
                                                 let_bindings.push(
                                                     (name.clone(), expr)
@@ -232,7 +235,7 @@ impl Rco {
                                 bindings: let_bindings,
                                 body: Box::new(
                                     AstNode::Prim {
-                                        op: "+".to_owned(),
+                                        op: op.clone(),
                                         args: vec!(lhand.1, rhand.1)
                                     }
                                 )

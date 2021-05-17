@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use super::token::{Token, TokenType};
 use super::ast::{AstNode, Program};
 
@@ -96,7 +98,7 @@ impl Parser {
 
         let error = 
             AstNode::Error {
-                msg: msg,
+                msg: Rc::new(msg),
                 token: self.peek(offset)
             };
 
@@ -135,7 +137,7 @@ impl Parser {
 
         match &token.lexeme[..] {
             "read" => {
-                AstNode::Prim{ op: token.lexeme, args: vec!() }
+                AstNode::Prim{ op: Rc::new(token.lexeme), args: vec!() }
             },
 
             // (let ([var exp]) (exp))
@@ -149,7 +151,7 @@ impl Parser {
                     return self.make_error_node("Expected a '['".to_owned(), 0)
                 }
 
-                let mut binding_vec: Vec<(String, AstNode)> = Vec::new();
+                let mut binding_vec: Vec<(Rc<String>, AstNode)> = Vec::new();
 
                 let mut keep_parsing = true;
 
@@ -171,7 +173,7 @@ impl Parser {
                         keep_parsing = false;
                     }
 
-                    binding_vec.push((var, value));
+                    binding_vec.push((Rc::new(var), value));
                 }
 
                 if !self.expect(TokenType::Rparen) {
@@ -188,7 +190,7 @@ impl Parser {
             },
             _ => {
                 AstNode::Var {
-                    name: token.lexeme
+                    name: Rc::new(token.lexeme)
                 }
             }
         }
@@ -201,13 +203,13 @@ impl Parser {
         match token.ttype {
             TokenType::Add => {
                 AstNode::Prim{
-                    op: token.lexeme,
+                    op: Rc::new(token.lexeme),
                     args: vec![self.parse_expr(), self.parse_expr()]
                 }
             },
             TokenType::Negate => {
                 AstNode::Prim{
-                    op: token.lexeme,
+                    op: Rc::new(token.lexeme),
                     args: vec![self.parse_expr()]
                 }
             },

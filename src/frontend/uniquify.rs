@@ -3,11 +3,12 @@
     this allows variable shadowing
 */
 
+use std::collections::HashMap;
+use std::rc::Rc;
+
 use super::ast::{AstNode, Program};
 
-use std::collections::HashMap;
-
-fn uniquify_exp(environments: &mut Vec<HashMap<String, String>>, e: AstNode) -> AstNode {
+fn uniquify_exp(environments: &mut Vec<HashMap<Rc<String>, Rc<String>>>, e: AstNode) -> AstNode {
     match e {
         AstNode::Int(n) => AstNode::Int(n),
 
@@ -47,7 +48,7 @@ fn uniquify_exp(environments: &mut Vec<HashMap<String, String>>, e: AstNode) -> 
 
             let last = environments.len()-1;
 
-            let mut uniq_bindings: Vec<(String, AstNode)> = Vec::new();
+            let mut uniq_bindings: Vec<(Rc<String>, AstNode)> = Vec::new();
 
             for binding in bindings {
 
@@ -56,9 +57,10 @@ fn uniquify_exp(environments: &mut Vec<HashMap<String, String>>, e: AstNode) -> 
                 let the_var = binding.0;
                 let the_value = binding.1;
 
-                let new_name = the_var.clone() + "." + &(last+1).to_string();
+                //let new_name = the_var.clone() + "." + &(last+1).to_string();
+                let new_name = Rc::new((*the_var).clone() + "." + &(last+1).to_string());
 
-                current_env.insert( the_var.clone(), new_name.clone() );
+                current_env.insert( the_var, new_name.clone() );
 
                 let unq_value = uniquify_exp(environments, the_value);
 
@@ -82,8 +84,12 @@ fn uniquify_exp(environments: &mut Vec<HashMap<String, String>>, e: AstNode) -> 
 }
 
 pub fn uniquify_program(p: Program) -> Program {
+
+    let env =
+        &mut Vec::<HashMap<Rc<String>, Rc<String>>>::new();
+
     Program {
         info: p.info,
-        exp: uniquify_exp(&mut Vec::<HashMap<String, String>>::new(), p.exp),
+        exp: uniquify_exp(env, p.exp),
     }
 }

@@ -2,6 +2,7 @@ use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 // Rlang -> exp ::= int | (read) | (- exp) | (+ exp exp)
 //               | var | (let ([var exp]) exp)
@@ -40,7 +41,7 @@ impl Rlang {
         Err(string)
     }
 
-    fn interp_exp(&mut self, env: &mut HashMap<String, i64>, e: AstNode) -> Result<i64, String> {
+    fn interp_exp(&mut self, env: &mut HashMap<Rc<String>, i64>, e: AstNode) -> Result<i64, String> {
         match e {
 
             AstNode::Int(n) => Ok(n),
@@ -87,7 +88,7 @@ impl Rlang {
                 for binding in bindings {
                     let the_var = binding.0;
 
-                    let already_exists = env.contains_key(&the_var);
+                    let already_exists = env.contains_key(&*the_var);
 
                     if already_exists {
                         return self.add_error(format!("{} is already defined!", the_var))
