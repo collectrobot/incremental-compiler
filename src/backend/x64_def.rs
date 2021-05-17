@@ -16,24 +16,24 @@ pub enum Arg {
     Deref(Reg, i64),
 }
 
-pub enum Instr {
+pub enum Instr<'a> {
     Add64(Arg, Arg),
     Sub64(Arg, Arg),
     Mov64(Arg, Arg),
     Neg64(Arg),
-    Call(String, i64),
+    Call(&'a str, i64),
     Ret,
     Push(Arg),
     Pop(Arg),
-    Jmp(String),
+    Jmp(&'a str),
 }
 
-pub struct Block {
+pub struct Block<'a> {
     info: Vec<()>,
-    instr: Vec<Instr>,
+    instr: Vec<Instr<'a>>,
 }
 
-pub struct X64Program {
+pub struct X64Program<'a> {
     info: Vec<()>,
-    blocks: HashMap<String, Block>,
+    blocks: HashMap<&'a str, Block<'a>>,
 }
