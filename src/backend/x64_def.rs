@@ -10,21 +10,22 @@ pub enum Reg {
     R12, R13, R14, R15
 }
 
-pub enum Arg {
+pub enum Arg<'a> {
+    Var(&'a str), // for the first pass where variables are still present
     Imm(i64),
     Reg(Reg),
     Deref(Reg, i64),
 }
 
 pub enum Instr<'a> {
-    Add64(Arg, Arg),
-    Sub64(Arg, Arg),
-    Mov64(Arg, Arg),
-    Neg64(Arg),
+    Add64(Arg<'a>, Arg<'a>),
+    Sub64(Arg<'a>, Arg<'a>),
+    Mov64(Arg<'a>, Arg<'a>),
+    Neg64(Arg<'a>),
     Call(&'a str, i64),
     Ret,
-    Push(Arg),
-    Pop(Arg),
+    Push(Arg<'a>),
+    Pop(Arg<'a>),
     Jmp(&'a str),
 }
 
