@@ -1,11 +1,10 @@
 // the abstract syntax of x64 assembly
 // as defined in the book, figure 2.8, page 29
 
-use crate::ir::explicate::{CProgram};
-
 use std::collections::HashMap;
 use std::rc::Rc;
 
+#[derive(Clone, Copy)]
 pub enum Reg {
     Rsp, Rbp, Rax, Rbx,
     Rcx, Rdx, Rsi, Rdi,
@@ -13,6 +12,7 @@ pub enum Reg {
     R12, R13, R14, R15
 }
 
+#[derive(Clone)]
 pub enum Arg {
     Var(Rc<String>), // for the first pass where variables are still present
     Imm(i64),
@@ -20,12 +20,14 @@ pub enum Arg {
     Deref(Reg, i64),
 }
 
+#[derive(Clone)]
 pub enum VarLoc {
     // a variable can live in either
     Reg(Reg), // a register or
     Imm(i64), // an offset from rbp
 }
 
+#[derive(Clone)]
 pub enum Instr {
     Add64(Arg, Arg),
     Sub64(Arg, Arg),
@@ -51,16 +53,4 @@ pub struct Block {
 pub struct X64Program {
     homes: Vec<Home>,
     blocks: HashMap<Rc<String>, Block>,
-}
-
-pub struct X64Transform {
-    ir: CProgram,
-}
-
-impl X64Transform {
-    pub fn new(cprog: CProgram) -> Self {
-        X64Transform {
-            ir: cprog
-        }
-    }
 }

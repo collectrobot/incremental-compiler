@@ -46,8 +46,8 @@ pub enum Tail {
 
 #[derive(Debug)]
 pub struct CProgram {
-    info: Vec<Rc<String>>, // local variables
-    labels: HashMap<Rc<String>, Tail>,
+    pub info: Vec<Rc<String>>, // local variables
+    pub labels: HashMap<Rc<String>, Tail>,
 }
 
 struct Explicator {
