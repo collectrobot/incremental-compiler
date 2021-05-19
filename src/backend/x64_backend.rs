@@ -20,7 +20,15 @@ mod select_instruction {
 
     pub fn handle_atom(atm: explicate::Atm) -> Arg {
 
-        ()
+        match atm {
+            explicate::Atm::Int(n) => {
+                Arg::Imm(n)
+            },
+
+            explicate::Atm::Var { name } => {
+                Arg::Var(name.clone())
+            }
+        }
     }
 
     pub fn handle_stmt(trans: &mut IRToX64Transformer, stmt: explicate::Stmt, acc: &mut Vec<Instr>) {
