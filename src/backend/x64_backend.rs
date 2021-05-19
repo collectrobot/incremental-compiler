@@ -38,7 +38,29 @@ mod select_instruction {
 
     pub fn handle_tail(trans: &mut IRToX64Transformer, tail: explicate::Tail, acc: &mut Vec<Instr>) {
 
-        ()
+        match tail {
+            explicate::Tail::Seq(stmt, tail) => {
+                handle_stmt(trans, stmt, acc);
+                handle_tail(trans, *tail, acc);
+            },
+
+            explicate::Tail::Return(exp) => {
+
+                match exp {
+                    explicate::Exp::Atm(atm) => {
+                        acc.push(Instr::Mov64(Arg::Reg(Reg::Rax), handle_atom(atm))
+                        );
+                        acc.push(Instr::Ret);
+                    },
+
+                    explicate::Exp::Prim { op, args } => {
+
+                    },
+
+                }
+            }
+        }
+
     }
 
 }
