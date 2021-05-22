@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Reg {
     Rsp, Rbp, Rax, Rbx,
     Rcx, Rdx, Rsi, Rdi,
@@ -12,7 +12,7 @@ pub enum Reg {
     R12, R13, R14, R15
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Arg {
     Var(Rc<String>), // for the first pass where variables are still present
     Imm(i64),
@@ -20,14 +20,15 @@ pub enum Arg {
     Deref(Reg, i64),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum VarLoc {
     // a variable can live in either
     Reg(Reg), // a register or
     Imm(i64), // an offset from rbp
+    Undefined, // initial value
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Instr {
     Add64(Arg, Arg),
     Sub64(Arg, Arg),
@@ -40,17 +41,20 @@ pub enum Instr {
     Jmp(Rc<String>),
 }
 
+#[derive(Clone, Debug)]
 pub struct Home {
-    name: Rc<String>,
-    loc: VarLoc,
+    pub name: Rc<String>,
+    pub loc: VarLoc,
 }
 
+#[derive(Clone, Debug)]
 pub struct Block {
-    info: Vec<()>,
-    instr: Vec<Instr>,
+    pub info: (),
+    pub instr: Vec<Instr>,
 }
 
+#[derive(Clone, Debug)]
 pub struct X64Program {
-    homes: Vec<Home>,
-    blocks: HashMap<Rc<String>, Block>,
+    pub vars: Vec<Home>, // vars that have a defined home (stack or register)
+    pub blocks: HashMap<Rc<String>, Block>,
 }

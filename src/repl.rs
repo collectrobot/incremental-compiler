@@ -169,13 +169,20 @@ rlang ::= exp
 
             println!("Result of interpreting the AST: {}\n", result);
 
-
             let intermediate_repr = explicate_control(decomplified_program);
 
             if self.show_ir {
                 println!("IR:");
                 println!("{:#?}", intermediate_repr);
             }
+
+            
+            let x64prog =
+                IRToX64Transformer::new(intermediate_repr)
+                .transform();
+
+            println!("{:#?}", x64prog);
+
         }
 
         Ok(())
