@@ -66,6 +66,7 @@ enum ExtractKind {
     AtmConst,
     BinaryOp,
     UnaryOp,
+    Function,
 }
 
 #[derive(Debug, Clone)]
@@ -138,6 +139,13 @@ impl Explicator {
             AstNode::Prim { op, args } => {
 
                 match &op[..] {
+                    "read" => {
+                        ExtractResult {
+                            kind: ExtractKind::Function,
+                            atom: None
+                        }
+                    },
+
                     "+" => {
                         ExtractResult {
                             kind: ExtractKind::BinaryOp,
@@ -389,6 +397,20 @@ impl Explicator {
             AstNode::Prim { op, args } => {
 
                 match &op[..] {
+
+                    "read" => {
+                        self.local_vars.push(var.clone());
+                        Tail::Seq(
+                            Stmt::Assign(
+                                Atm::Var { name: var },
+                                Exp::Prim {
+                                    op: op.clone(),
+                                    args: vec!()
+                                }
+                            ),
+                            Box::new(acc)
+                        )
+                    },
 
                     "+" => {
                         self.local_vars.push(var.clone());

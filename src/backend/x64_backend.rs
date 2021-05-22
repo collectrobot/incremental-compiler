@@ -68,6 +68,11 @@ pub mod select_instruction {
                         Exp::Prim { op, args } => {
 
                             match &op[..] {
+                                "read" => {
+                                    td.instr.push(Instr::Call(op.clone(), 0));
+                                    td.instr.push(Instr::Mov64(assignee, Arg::Reg(Reg::Rax)));
+                                }
+
                                 "-" => {
                                     let assigned = self.handle_atom(&args[0], td);
 

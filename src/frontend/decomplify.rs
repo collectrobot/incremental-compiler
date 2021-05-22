@@ -186,8 +186,46 @@ impl Rco {
             AstNode::Prim { op, args } => {
 
                 match &op[..] {
-                    "read" | "-" => {
+                    "read" => {
                         e
+                    },
+
+                    // potentially need to atomize args[0]
+                    "-" => {
+                        let arg = self.rco_atom(args[0].clone());
+
+                        if arg.0 == true {
+
+                            let var_name = 
+                                match &arg.1 {
+                                    AstNode::Var { name } => {
+                                        name.clone()
+                                    }
+                                    
+                                    _ => {
+                                        unreachable!();
+                                    }
+                                };
+
+                            let let_binding: Vec<(Rc<String>, AstNode)> = vec!(
+                                (
+                                    var_name.clone(),
+                                    self.env_get(&*var_name).unwrap()
+                                )
+                            );
+
+                            AstNode::Let {
+                                bindings: let_binding,
+                                body: Box::new(
+                                    AstNode::Prim {
+                                        op: op.clone(),
+                                        args: vec!(arg.1)
+                                    }
+                                )
+                            }
+                        } else {
+                            e
+                        }
                     },
 
                     "+" => {
