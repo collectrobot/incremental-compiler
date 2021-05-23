@@ -12,6 +12,9 @@ pub struct IRToX64Transformer {
     cprog: explicate::CProgram,
     blocks: HashMap<Rc<String>, x64_def::Block>,
     vars: HashSet<x64_def::Home>,
+    rbp_offset: i64,
+    prologue_tag: Rc::<String>,
+    epilogue_tag: Rc::<String>,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -115,21 +118,24 @@ pub mod select_instruction {
                         Exp::Atm(atm) => {
                             let the_atom = self.handle_atom(atm, td);
                             td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atom));
-                            td.instr.push(Instr::Ret);
+                            //td.instr.push(Instr::Call(self.epilogue_tag.clone(), 0));
+                            //td.instr.push(Instr::Ret);
                         },
 
                         Exp::Prim { op, args } => {
                             match &op[..] {
                                 "read" => {
                                     td.instr.push(Instr::Call(op.clone(), 0));
-                                    td.instr.push(Instr::Ret);
+                                    //td.instr.push(Instr::Call(self.epilogue_tag.clone(), 0));
+                                    //td.instr.push(Instr::Ret);
                                 },
 
                                 "-" => {
                                     let the_atm = self.handle_atom(&args[0], td);
                                     td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atm.clone()));
                                     td.instr.push(Instr::Neg64(Arg::Reg(Reg::Rax)));
-                                    td.instr.push(Instr::Ret);
+                                    //td.instr.push(Instr::Call(self.epilogue_tag.clone(), 0));
+                                    //td.instr.push(Instr::Ret);
                                 },
                                 "+" => {
                                     let latm = self.handle_atom(&args[0], td);
@@ -137,7 +143,8 @@ pub mod select_instruction {
 
                                     td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
                                     td.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
-                                    td.instr.push(Instr::Ret);
+                                    //td.instr.push(Instr::Call(self.epilogue_tag.clone(), 0));
+                                    //td.instr.push(Instr::Ret);
                                 },
 
                                 _ => {
@@ -161,17 +168,37 @@ mod patch_instructions {
 }
 
 impl IRToX64Transformer {
+    fn next_rbp_offset(&mut self) -> i64 {
+        let old_value = self.rbp_offset;
+
+        self.rbp_offset += -8;
+
+        old_value
+    }
+
     pub fn new(cprog: explicate::CProgram) -> Self {
         IRToX64Transformer {
             cprog: cprog,
             blocks: HashMap::new(),
-            vars: HashSet::new()
+            vars: HashSet::new(),
+            rbp_offset: 0,
+            prologue_tag: Rc::new("prologue".to_owned()),
+            epilogue_tag: Rc::new("epilogue".to_owned()),
         }
     }
 
     pub fn transform(&mut self) -> x64_def::X64Program {
 
+        use x64_def::*;
         use select_instruction::SelectInstruction;
+
+        // setup for start of function
+        // push old rbp
+        // move new rsp into rbp
+        let mut fn_start: Vec<Instr> = vec!(
+            Instr::Push(Arg::Reg(Reg::Rbp)),
+            Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
+        );
 
         for (label, tail) in &self.cprog.labels {
 
@@ -184,7 +211,7 @@ impl IRToX64Transformer {
 
             self.blocks.insert(
                 label.clone(),
-                x64_def::Block {
+                Block {
                     info: (),
                     instr: td.instr
                 }
@@ -193,7 +220,31 @@ impl IRToX64Transformer {
             self.vars.extend(td.vars);
         }
 
-        x64_def::X64Program {
+        // we're done, set rsp to rbp, pop it, then return
+        let fn_end: Vec<Instr> = vec!(
+            Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
+            Instr::Pop(Arg::Reg(Reg::Rbp)),
+            Instr::Ret
+        );
+
+        let start_label = Rc::new("start".to_owned());
+
+        let start_fn = self.blocks.get_mut(&start_label).unwrap();
+
+        let old_info = start_fn.info;
+
+        fn_start.extend(start_fn.instr.clone());
+        fn_start.extend(fn_end);
+
+        self.blocks.insert(
+            start_label,
+            Block {
+                info: old_info,
+                instr: fn_start
+            }
+        );
+
+        X64Program {
             vars: self.vars.to_owned(),
             blocks: self.blocks.to_owned()
         }
