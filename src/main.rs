@@ -2,6 +2,7 @@ mod repl;
 mod io;
 mod backend;
 mod frontend;
+mod interpreter;
 mod ir;
 
 #[macro_use]

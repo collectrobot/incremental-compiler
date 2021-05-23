@@ -3,8 +3,8 @@ use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::decomplify::{decomplify_program};
 use crate::ir::explicate::{explicate_control};
-use crate::backend::interp::{Interpreter};
 use crate::backend::x64_backend::{IRToX64Transformer};
+use crate::interpreter::interp_ast;
 
 use crate::io::{get_line};
 
@@ -167,7 +167,7 @@ rlang ::= exp
                 println!("{:#?}", decomplified_program);
             }
 
-            let mut interp = Interpreter::new(decomplified_program.clone());
+            let mut interp = interp_ast::Interpreter::new(decomplified_program.clone());
 
             let result = interp.interpret();
 
