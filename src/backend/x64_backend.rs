@@ -196,6 +196,7 @@ impl IRToX64Transformer {
         // push old rbp
         // move new rsp into rbp
         let mut fn_start: Vec<Instr> = vec!(
+            Instr::Push(Arg::Reg(Reg::R15)), // used for patching instructions where we end up with two memory operands
             Instr::Push(Arg::Reg(Reg::Rbp)),
             Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
         );
@@ -224,6 +225,7 @@ impl IRToX64Transformer {
         let fn_end: Vec<Instr> = vec!(
             Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
             Instr::Pop(Arg::Reg(Reg::Rbp)),
+            Instr::Pop(Arg::Reg(Reg::R15)),
             Instr::Ret
         );
 
