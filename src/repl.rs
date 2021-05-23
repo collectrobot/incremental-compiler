@@ -27,6 +27,7 @@ pub struct Repl {
     commands: Vec<ReplCommand>,
     show_ast: bool,
     show_ir: bool,
+    show_x64: bool,
 }
 
 impl Repl {
@@ -36,8 +37,8 @@ impl Repl {
             ReplCommand { cmd: ":help", help: "show available commands", action: Repl::print_help },
             ReplCommand {
                 cmd: ":show-ast",
-                help: "show the abstract syntax tree before execution",
-                action: |r | {
+                help: "show the abstract syntax tree",
+                action: |r| {
                     if r.show_ast == true {
                         r.show_ast = false;
                     } else {
@@ -49,12 +50,25 @@ impl Repl {
             },
             ReplCommand {
                 cmd: ":show-ir",
-                help: "show the intermediate representation before execution",
-                action: |r | {
+                help: "show the intermediate representation",
+                action: |r| {
                     if r.show_ir == true {
                         r.show_ir;
                     } else {
                         r.show_ir = true;
+                    }
+
+                    ReplResult::KeepGoing
+                },
+            },
+            ReplCommand {
+                cmd: ":show-x64",
+                help: "show the x64 representation",
+                action: |r| {
+                    if r.show_x64 == true {
+                        r.show_x64;
+                    } else {
+                        r.show_x64 = true;
                     }
 
                     ReplResult::KeepGoing
@@ -68,6 +82,7 @@ impl Repl {
             commands: commands,
             show_ast: false,
             show_ir: false,
+            show_x64: false,
         }
     }
 
@@ -180,8 +195,10 @@ rlang ::= exp
             let x64prog =
                 IRToX64Transformer::new(intermediate_repr)
                 .transform();
-
-            println!("{:#?}", x64prog);
+  
+            if self.show_x64 {
+                println!("{:#?}", x64prog);
+            }
 
         }
 
