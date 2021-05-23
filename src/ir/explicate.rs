@@ -290,10 +290,9 @@ impl Explicator {
                     },
 
                     "-" => {
-
                         let atm = self.extract_atom(exp.clone());
 
-                        if atm.kind == ExtractKind::AtmVar {
+                        if atm.kind == ExtractKind::AtmConst {
                             Tail::Return (
                                 Exp::Atm (
                                     atm.atom.unwrap()

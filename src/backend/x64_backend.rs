@@ -1,6 +1,7 @@
 // the first part of the journey from clang to x64
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use super::x64_def;
@@ -10,12 +11,12 @@ use crate::ir::explicate;
 pub struct IRToX64Transformer {
     cprog: explicate::CProgram,
     blocks: HashMap<Rc<String>, x64_def::Block>,
-    vars: Vec<x64_def::Home>,
+    vars: HashSet<x64_def::Home>,
 }
 
 #[derive(Default, Clone, Debug)]
 pub struct TransformData {
-    vars: Vec<x64_def::Home>,
+    vars: HashSet<x64_def::Home>,
     instr: Vec<x64_def::Instr>,
 }
 
@@ -42,7 +43,7 @@ pub mod select_instruction {
                 },
 
                 Atm::Var { name } => {
-                    td.vars.push(
+                    td.vars.insert(
                         Home {
                             name: name.clone(),
                             loc: VarLoc::Undefined
@@ -99,6 +100,8 @@ pub mod select_instruction {
         }
 
         fn handle_tail(&self, tail: &Tail, td: &mut TransformData) {
+
+            //println!("{:?}", tail);
 
             match tail {
                 Tail::Seq(stmt, tail) => {
@@ -162,7 +165,7 @@ impl IRToX64Transformer {
         IRToX64Transformer {
             cprog: cprog,
             blocks: HashMap::new(),
-            vars: vec!()
+            vars: HashSet::new()
         }
     }
 

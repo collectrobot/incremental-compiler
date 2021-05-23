@@ -2,9 +2,10 @@
 // as defined in the book, figure 2.8, page 29
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::rc::Rc;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Reg {
     Rsp, Rbp, Rax, Rbx,
     Rcx, Rdx, Rsi, Rdi,
@@ -20,7 +21,7 @@ pub enum Arg {
     Deref(Reg, i64),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum VarLoc {
     // a variable can live in either
     Reg(Reg), // a register or
@@ -41,7 +42,7 @@ pub enum Instr {
     Jmp(Rc<String>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Home {
     pub name: Rc<String>,
     pub loc: VarLoc,
@@ -55,6 +56,6 @@ pub struct Block {
 
 #[derive(Clone, Debug)]
 pub struct X64Program {
-    pub vars: Vec<Home>, // vars that have a defined home (stack or register)
+    pub vars: HashSet<Home>, // vars that have a defined home (stack or register)
     pub blocks: HashMap<Rc<String>, Block>,
 }
