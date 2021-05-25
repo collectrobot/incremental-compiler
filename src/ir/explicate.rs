@@ -46,7 +46,7 @@ pub enum Tail {
 
 #[derive(Debug)]
 pub struct CProgram {
-    pub info: Vec<Rc<String>>, // local variables
+    pub locals: Vec<Rc<String>>, // local variables
     pub labels: HashMap<Rc<String>, Tail>,
 }
 
@@ -478,7 +478,7 @@ pub fn explicate_control(program: Program) -> CProgram {
 
     // start is the entry point in clang
     CProgram {
-        info: explicator.local_vars,
+        locals: explicator.local_vars,
         labels: labels,
     }
 }
