@@ -44,7 +44,7 @@ pub enum Tail {
     Seq(Stmt, Box<Tail>),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CProgram {
     pub locals: Vec<Rc<String>>, // local variables
     pub labels: HashMap<Rc<String>, Tail>,

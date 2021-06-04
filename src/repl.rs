@@ -4,7 +4,7 @@ use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::decomplify::{decomplify_program};
 use crate::ir::explicate::{explicate_control};
 use crate::backend::x64_backend::{IRToX64Transformer};
-use crate::interpreter::interp_ast;
+use crate::interpreter::{interp_ast, interp_ir};
 
 use crate::io::{get_line};
 
@@ -174,15 +174,9 @@ rlang ::= exp
             if interp.had_error() {
                 interp.print_errors();
                 continue 'repl_loop;
+            } else {
+                println!("Result of interpreting the AST: {}\n", result.unwrap());
             }
-
-            let result = 
-                match result {
-                    Ok(n) => n.to_string(),
-                    Err(err) => err
-                };
-
-            println!("Result of interpreting the AST: {}\n", result);
 
             let intermediate_repr = explicate_control(decomplified_program);
 
@@ -191,6 +185,15 @@ rlang ::= exp
                 println!("{:#?}", intermediate_repr);
             }
 
+            let mut ir_interp = interp_ir::Clang::new(intermediate_repr.clone());
+            let result = ir_interp.interpret();
+
+            if ir_interp.has_error() {
+                ir_interp.print_errors();
+                continue 'repl_loop;
+            } else {
+                println!("Result of interpreting the IR: {}\n", result.unwrap());
+            }
             
             let x64prog =
                 IRToX64Transformer::new(intermediate_repr)
