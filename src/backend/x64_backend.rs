@@ -17,6 +17,9 @@ pub struct IRToX64Transformer {
     rbp_offset: i64,
     prologue_tag: Rc::<String>,
     epilogue_tag: Rc::<String>,
+    prologue_necessary: bool, // do we need a frame pointer ?
+    memory_patch: x64_def::Reg, // we might need a register for the case when we end up with an operation taking to memory operands
+    mp_used: bool, // flag for above value
 }
 
 #[derive(Default, Clone, Debug)]
@@ -169,22 +172,15 @@ impl IRToX64Transformer {
             rbp_offset: 0,
             prologue_tag: Rc::new("prologue".to_owned()),
             epilogue_tag: Rc::new("epilogue".to_owned()),
+            prologue_necessary: false,
+            memory_patch: x64_def::Reg::R15,
+            mp_used: false
         }
     }
 
     pub fn transform(&mut self) -> x64_def::X64Program {
 
         use x64_def::*;
-        //use select_instruction::SelectInstruction;
-
-        // setup for start of function
-        // push old rbp
-        // move new rsp into rbp
-        let mut fn_start: Vec<Instr> = vec!(
-            Instr::Push(Arg::Reg(Reg::R15)), // used for patching instructions where we end up with two memory operands
-            Instr::Push(Arg::Reg(Reg::Rbp)),
-            Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
-        );
 
         for (label, tail) in &self.cprog.labels {
 
@@ -195,41 +191,37 @@ impl IRToX64Transformer {
                 &mut td
             );
 
+            let mut fn_start: Vec<Instr> = vec!();
+            let mut fn_end: Vec<Instr> = vec!();
+
+            if self.prologue_necessary {
+                fn_start.push(Instr::Push(Arg::Reg(Reg::Rbp)));
+                fn_start.push(Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)));
+
+                fn_end.push(Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)));
+                fn_end.push(Instr::Pop(Arg::Reg(Reg::Rbp)));
+
+                if self.mp_used {
+                    fn_start.insert(0, Instr::Push(Arg::Reg(self.memory_patch)));
+                    fn_end.push(Instr::Pop(Arg::Reg(self.memory_patch)));
+                }
+            }
+
+            fn_end.push(Instr::Ret);
+
+            fn_start.extend(td.instr);
+            fn_start.extend(fn_end);
+
             self.blocks.insert(
                 label.clone(),
                 Block {
                     info: (),
-                    instr: td.instr
+                    instr: fn_start
                 }
             );
 
             self.vars.extend(td.vars);
         }
-
-        // we're done, set rsp to rbp, pop it, then return
-        let fn_end: Vec<Instr> = vec!(
-            Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
-            Instr::Pop(Arg::Reg(Reg::Rbp)),
-            Instr::Pop(Arg::Reg(Reg::R15)),
-            Instr::Ret
-        );
-
-        let start_label = Rc::new("start".to_owned());
-
-        let start_fn = self.blocks.get_mut(&start_label).unwrap();
-
-        let old_info = start_fn.info;
-
-        fn_start.extend(start_fn.instr.clone());
-        fn_start.extend(fn_end);
-
-        self.blocks.insert(
-            start_label,
-            Block {
-                info: old_info,
-                instr: fn_start
-            }
-        );
 
         X64Program {
             vars: self.vars.to_owned(),
