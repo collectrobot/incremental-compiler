@@ -85,7 +85,7 @@ impl Explicator {
         }
     }
 
-    // perform arithmetic on two constants
+    // Perform arithmetic on two constants
     fn arithm_atoms(&self, kind: Arithmetic, a1: Atm, a2: Atm) -> Atm {
         let v1 = match a1 {
             Atm::Int(n) => n,
@@ -122,9 +122,9 @@ impl Explicator {
         }
     }
 
-    // returns (Atm, bool) if an atom is found and false if it's a var, true if it's a const
-    // else an error in the case where an atom cannot be extracted directly
-    // for exmaple if the original expression is (+ (+ 2 2) 2), and extract_atom is called on (+ 2 2)
+    // If exp is an atom (constants or identifier), the ExtractResult contains
+    // its kind, and the atom.
+    // Else ExtractResult contains the kind of exp, but no atom, as we couldn't extract one
     fn extract_atom(&mut self, exp: AstNode) -> ExtractResult {
         match &exp {
 
@@ -139,6 +139,7 @@ impl Explicator {
                     },
 
                     "+" => {
+                        // TODO: here we should evaluate the operands if they're both constants
                         ExtractResult {
                             kind: ExtractKind::BinaryOp,
                             atom: None
@@ -185,6 +186,7 @@ impl Explicator {
                     atom: Some(Atm::Int(*n))
                 }
             },
+
             AstNode::Var{name} => {
                 ExtractResult {
                     kind: ExtractKind::AtmVar,

@@ -25,7 +25,7 @@ pub struct TransformData {
     instr: Vec<x64_def::Instr>,
 }
 
-pub mod select_instruction {
+mod select_instruction {
 
     use super::x64_def::*;
     use super::TransformData;
