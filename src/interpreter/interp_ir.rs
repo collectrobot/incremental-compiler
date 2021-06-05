@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -38,15 +40,26 @@ impl Clang {
         self.errors.push(err.clone());
     }
 
-    fn get_var_value(&mut self, var: Atm) -> Option<Atm> {
+    fn get_var_value(&mut self, var: &Atm) -> Option<Atm> {
 
         match var {
             Atm::Var { name } => {
-                let the_value = self.vars.get(&name);
+                let the_value = self.vars.get(name);
 
                 match the_value {
                     Some(value) => {
-                        Some(value.clone())
+
+                        let v = value.clone();
+
+                        // a variable might be set to another variable
+                        // e.g. (let ([x (let ([y 42]) y)]) (+ x 1))
+                        // where x = y, and so we need this to return an actual value
+                        if let Atm::Var { .. } = v {
+                            self.get_var_value(&v)
+                        } else {
+                            Some(value.clone())
+                        }
+
                     },
 
                     _ => {
@@ -75,7 +88,7 @@ impl Clang {
 
                 let larg_value = match larg {
                     Atm::Var { .. } => {
-                        let maybe_val = self.get_var_value(larg);
+                        let maybe_val = self.get_var_value(&larg);
 
                         self.extract_i64(&maybe_val.unwrap()).unwrap()
                     },
@@ -87,7 +100,7 @@ impl Clang {
 
                 let rarg_value = match rarg {
                     Atm::Var { .. } => {
-                        let maybe_val = self.get_var_value(rarg);
+                        let maybe_val = self.get_var_value(&rarg);
 
                         self.extract_i64(&maybe_val.unwrap()).unwrap()
                     },
@@ -115,7 +128,7 @@ impl Clang {
             Arithmetic::Unary(kind, arg) => {
                 let arg_value = match arg {
                     Atm::Var { .. } => {
-                        let maybe_val = self.get_var_value(arg);
+                        let maybe_val = self.get_var_value(&arg);
 
                         self.extract_i64(&maybe_val.unwrap()).unwrap()
                     },

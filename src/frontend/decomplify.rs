@@ -76,7 +76,7 @@ impl Rco {
                 })
             },
 
-            AstNode::Prim { op, args } => {
+            AstNode::Prim { op, .. } => {
 
                 match &op[..] {
                     "+" => {

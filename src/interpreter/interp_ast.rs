@@ -113,12 +113,7 @@ impl Rlang {
             AstNode::Error {msg, token} => {
                 self.add_error(format!("{}{:?}", msg, token))
             },
-
-            _ => {
-                self.add_error(format!("Unknown ast node: {:?}", e))
-            },
         }
-        
     }
 
     fn interp_r(&mut self, p: Program) -> Result<i64, String> {

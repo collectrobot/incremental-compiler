@@ -1,5 +1,7 @@
 // the first part of the journey from clang to x64
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;

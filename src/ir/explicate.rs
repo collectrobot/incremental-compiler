@@ -3,6 +3,7 @@
     execution explicit
 */
 
+#![allow(dead_code)]
 
 use crate::frontend::ast::{AstNode, Program};
 
@@ -118,15 +119,6 @@ impl Explicator {
             Arithmetic::Sub => {
                 Atm::Int(v1 - v2)
             },
-
-            _ => {
-                println!("{}:{}: arithmetic kind unknown: '{:?}'",
-                    crate::function!(),
-                    line!(),
-                    kind
-                );
-                unreachable!();
-            }
         }
     }
 

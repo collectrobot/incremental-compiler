@@ -1,6 +1,8 @@
 // the abstract syntax of x64 assembly
 // as defined in the book, figure 2.8, page 29
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
