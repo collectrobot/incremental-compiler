@@ -32,15 +32,8 @@ pub mod select_instruction {
     use super::IRToX64Transformer;
     use super::explicate::{Atm, Stmt, Tail, Exp};
 
-    pub trait SelectInstruction {
-        fn handle_atom(&self, atm: &Atm, td: &mut TransformData) -> Arg;
-        fn handle_stmt(&self, stmt: &Stmt, td: &mut TransformData);
-        fn handle_tail(&self, tail: &Tail, td: &mut TransformData);
-    }
-
-    impl SelectInstruction for IRToX64Transformer {
-
-        fn handle_atom(&self, atm: &Atm, td: &mut TransformData) -> Arg {
+    impl IRToX64Transformer {
+        pub fn handle_atom(&self, atm: &Atm, td: &mut TransformData) -> Arg {
 
             match atm {
                 Atm::Int(n) => {
@@ -60,7 +53,7 @@ pub mod select_instruction {
             }
         }
 
-        fn handle_stmt(&self, stmt: &Stmt, td: &mut TransformData) {
+        pub fn handle_stmt(&self, stmt: &Stmt, td: &mut TransformData) {
             match stmt {
                 Stmt::Assign(atm, expr) => {
                     let assignee = self.handle_atom(atm, td);
@@ -104,9 +97,7 @@ pub mod select_instruction {
             }
         }
 
-        fn handle_tail(&self, tail: &Tail, td: &mut TransformData) {
-
-            //println!("{:?}", tail);
+        pub fn handle_tail(&self, tail: &Tail, td: &mut TransformData) {
 
             match tail {
                 Tail::Seq(stmt, tail) => {
@@ -120,24 +111,18 @@ pub mod select_instruction {
                         Exp::Atm(atm) => {
                             let the_atom = self.handle_atom(atm, td);
                             td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atom));
-                            //td.instr.push(Instr::Call(self.epilogue_tag.clone(), 0));
-                            //td.instr.push(Instr::Ret);
                         },
 
                         Exp::Prim { op, args } => {
                             match &op[..] {
                                 "read" => {
                                     td.instr.push(Instr::Call(op.clone(), 0));
-                                    //td.instr.push(Instr::Call(self.epilogue_tag.clone(), 0));
-                                    //td.instr.push(Instr::Ret);
                                 },
 
                                 "-" => {
                                     let the_atm = self.handle_atom(&args[0], td);
                                     td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atm.clone()));
                                     td.instr.push(Instr::Neg64(Arg::Reg(Reg::Rax)));
-                                    //td.instr.push(Instr::Call(self.epilogue_tag.clone(), 0));
-                                    //td.instr.push(Instr::Ret);
                                 },
                                 "+" => {
                                     let latm = self.handle_atom(&args[0], td);
@@ -145,8 +130,6 @@ pub mod select_instruction {
 
                                     td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
                                     td.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
-                                    //td.instr.push(Instr::Call(self.epilogue_tag.clone(), 0));
-                                    //td.instr.push(Instr::Ret);
                                 },
 
                                 _ => {
@@ -192,7 +175,7 @@ impl IRToX64Transformer {
     pub fn transform(&mut self) -> x64_def::X64Program {
 
         use x64_def::*;
-        use select_instruction::SelectInstruction;
+        //use select_instruction::SelectInstruction;
 
         // setup for start of function
         // push old rbp
