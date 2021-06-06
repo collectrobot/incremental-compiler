@@ -23,7 +23,7 @@ pub struct IRToX64Transformer {
 }
 
 #[derive(Default, Clone, Debug)]
-pub struct TransformData {
+pub struct FunctionData {
     vars: HashSet<x64_def::Home>,
     instr: Vec<x64_def::Instr>,
 }
@@ -31,12 +31,12 @@ pub struct TransformData {
 mod select_instruction {
 
     use super::x64_def::*;
-    use super::TransformData;
+    use super::FunctionData;
     use super::IRToX64Transformer;
     use super::explicate::{Atm, Stmt, Tail, Exp};
 
     impl IRToX64Transformer {
-        pub fn handle_atom(&self, atm: &Atm, td: &mut TransformData) -> Arg {
+        pub fn handle_atom(&self, atm: &Atm, fn_data: &mut FunctionData) -> Arg {
 
             match atm {
                 Atm::Int(n) => {
@@ -44,7 +44,7 @@ mod select_instruction {
                 },
 
                 Atm::Var { name } => {
-                    td.vars.insert(
+                    fn_data.vars.insert(
                         Home {
                             name: name.clone(),
                             loc: VarLoc::Undefined
@@ -56,38 +56,38 @@ mod select_instruction {
             }
         }
 
-        pub fn handle_stmt(&self, stmt: &Stmt, td: &mut TransformData) {
+        pub fn handle_stmt(&self, stmt: &Stmt, fn_data: &mut FunctionData) {
             match stmt {
                 Stmt::Assign(atm, expr) => {
-                    let assignee = self.handle_atom(atm, td);
+                    let assignee = self.handle_atom(atm, fn_data);
 
                     match expr {
                         Exp::Atm(atm) => {
-                            let assigned = self.handle_atom(atm, td);
-                            td.instr.push(Instr::Mov64(assignee, assigned));
+                            let assigned = self.handle_atom(atm, fn_data);
+                            fn_data.instr.push(Instr::Mov64(assignee, assigned));
                         }
 
                         Exp::Prim { op, args } => {
 
                             match &op[..] {
                                 "read" => {
-                                    td.instr.push(Instr::Call(op.clone(), 0));
-                                    td.instr.push(Instr::Mov64(assignee, Arg::Reg(Reg::Rax)));
+                                    fn_data.instr.push(Instr::Call(op.clone(), 0));
+                                    fn_data.instr.push(Instr::Mov64(assignee, Arg::Reg(Reg::Rax)));
                                 }
 
                                 "-" => {
-                                    let assigned = self.handle_atom(&args[0], td);
+                                    let assigned = self.handle_atom(&args[0], fn_data);
 
-                                    td.instr.push(Instr::Mov64(assignee.clone(), assigned));
-                                    td.instr.push(Instr::Neg64(assignee));
+                                    fn_data.instr.push(Instr::Mov64(assignee.clone(), assigned));
+                                    fn_data.instr.push(Instr::Neg64(assignee));
                                 },
 
                                 "+" => {
-                                    let latm = self.handle_atom(&args[0], td);
-                                    let ratm = self.handle_atom(&args[1], td);
+                                    let latm = self.handle_atom(&args[0], fn_data);
+                                    let ratm = self.handle_atom(&args[1], fn_data);
 
-                                    td.instr.push(Instr::Mov64(assignee.clone(), latm));
-                                    td.instr.push(Instr::Add64(assignee, ratm));
+                                    fn_data.instr.push(Instr::Mov64(assignee.clone(), latm));
+                                    fn_data.instr.push(Instr::Add64(assignee, ratm));
                                 },
 
                                 _ => {
@@ -100,39 +100,39 @@ mod select_instruction {
             }
         }
 
-        pub fn handle_tail(&self, tail: &Tail, td: &mut TransformData) {
+        pub fn handle_tail(&self, tail: &Tail, fn_data: &mut FunctionData) {
 
             match tail {
                 Tail::Seq(stmt, tail) => {
-                    self.handle_stmt(stmt, td);
-                    self.handle_tail(tail, td);
+                    self.handle_stmt(stmt, fn_data);
+                    self.handle_tail(tail, fn_data);
                 },
 
                 Tail::Return(exp) => {
 
                     match exp {
                         Exp::Atm(atm) => {
-                            let the_atom = self.handle_atom(atm, td);
-                            td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atom));
+                            let the_atom = self.handle_atom(atm, fn_data);
+                            fn_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atom));
                         },
 
                         Exp::Prim { op, args } => {
                             match &op[..] {
                                 "read" => {
-                                    td.instr.push(Instr::Call(op.clone(), 0));
+                                    fn_data.instr.push(Instr::Call(op.clone(), 0));
                                 },
 
                                 "-" => {
-                                    let the_atm = self.handle_atom(&args[0], td);
-                                    td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atm.clone()));
-                                    td.instr.push(Instr::Neg64(Arg::Reg(Reg::Rax)));
+                                    let the_atm = self.handle_atom(&args[0], fn_data);
+                                    fn_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atm.clone()));
+                                    fn_data.instr.push(Instr::Neg64(Arg::Reg(Reg::Rax)));
                                 },
                                 "+" => {
-                                    let latm = self.handle_atom(&args[0], td);
-                                    let ratm = self.handle_atom(&args[1], td);
+                                    let latm = self.handle_atom(&args[0], fn_data);
+                                    let ratm = self.handle_atom(&args[1], fn_data);
 
-                                    td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
-                                    td.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
+                                    fn_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
+                                    fn_data.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
                                 },
 
                                 _ => {
@@ -184,11 +184,11 @@ impl IRToX64Transformer {
 
         for (label, tail) in &self.cprog.labels {
 
-            let mut td = TransformData::default();
+            let mut fn_data = FunctionData::default();
 
             self.handle_tail(
                 tail,
-                &mut td
+                &mut fn_data
             );
 
             let mut fn_start: Vec<Instr> = vec!();
@@ -209,7 +209,7 @@ impl IRToX64Transformer {
 
             fn_end.push(Instr::Ret);
 
-            fn_start.extend(td.instr);
+            fn_start.extend(fn_data.instr);
             fn_start.extend(fn_end);
 
             self.blocks.insert(
@@ -220,7 +220,7 @@ impl IRToX64Transformer {
                 }
             );
 
-            self.vars.extend(td.vars);
+            self.vars.extend(fn_data.vars);
         }
 
         X64Program {
