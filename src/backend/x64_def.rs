@@ -27,8 +27,14 @@ pub enum Arg {
 pub enum VarLoc {
     // a variable can live in either
     Reg(Reg), // a register or
-    Imm(i64), // an offset from rbp
+    Rbp(i64), // an offset from rbp
     Undefined, // initial value
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct Home {
+    pub name: Rc<String>,
+    pub loc: VarLoc,
 }
 
 #[derive(Clone, Debug)]
@@ -42,12 +48,6 @@ pub enum Instr {
     Push(Arg),
     Pop(Arg),
     Jmp(Rc<String>),
-}
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct Home {
-    pub name: Rc<String>,
-    pub loc: VarLoc,
 }
 
 #[derive(Clone, Debug)]

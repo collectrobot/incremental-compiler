@@ -149,6 +149,30 @@ mod select_instruction {
 
 mod assign_homes {
 
+    use std::collections::HashSet;
+
+    use super::x64_def::*;
+    use super::IRToX64Transformer;
+
+    impl IRToX64Transformer {
+        pub fn assign_homes(&mut self) {
+
+            let the_vars = self.vars.clone();
+            let mut found_homes: HashSet<Home> = HashSet::new();
+
+            for var in the_vars {
+                let mut assigned = var.clone();
+
+                let next_rbp_offset = self.next_rbp_offset();
+
+                assigned.loc = VarLoc::Rbp(next_rbp_offset);
+
+                found_homes.insert(assigned);
+            }
+
+            self.vars = found_homes;
+        }
+    }
 }
 
 mod patch_instructions {
@@ -157,11 +181,11 @@ mod patch_instructions {
 
 impl IRToX64Transformer {
     fn next_rbp_offset(&mut self) -> i64 {
-        let old_value = self.rbp_offset;
-
+        // rbp_offset starts at 0, so need to decrement
+        // the offset first, so that rbp isn't overwritten
         self.rbp_offset += -8;
 
-        old_value
+        self.rbp_offset
     }
 
     pub fn new(cprog: explicate::CProgram) -> Self {
@@ -222,6 +246,8 @@ impl IRToX64Transformer {
 
             self.vars.extend(td.vars);
         }
+
+        self.assign_homes();
 
         X64Program {
             vars: self.vars.to_owned(),
