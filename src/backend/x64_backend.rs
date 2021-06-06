@@ -23,7 +23,7 @@ pub struct IRToX64Transformer {
 }
 
 #[derive(Default, Clone, Debug)]
-pub struct BlockData {
+pub struct TransformData {
     vars: HashSet<x64_def::Home>,
     instr: Vec<x64_def::Instr>,
 }
@@ -31,12 +31,12 @@ pub struct BlockData {
 mod select_instruction {
 
     use super::x64_def::*;
-    use super::BlockData;
+    use super::TransformData;
     use super::IRToX64Transformer;
     use super::explicate::{Atm, Stmt, Tail, Exp};
 
     impl IRToX64Transformer {
-        pub fn handle_atom(&self, atm: &Atm, blk_data: &mut BlockData) -> Arg {
+        fn handle_atom(&self, atm: &Atm, td: &mut TransformData) -> Arg {
 
             match atm {
                 Atm::Int(n) => {
@@ -44,7 +44,7 @@ mod select_instruction {
                 },
 
                 Atm::Var { name } => {
-                    blk_data.vars.insert(
+                    td.vars.insert(
                         Home {
                             name: name.clone(),
                             loc: VarLoc::Undefined
@@ -56,38 +56,38 @@ mod select_instruction {
             }
         }
 
-        pub fn handle_stmt(&self, stmt: &Stmt, blk_data: &mut BlockData) {
+        fn handle_stmt(&self, stmt: &Stmt, td: &mut TransformData) {
             match stmt {
                 Stmt::Assign(atm, expr) => {
-                    let assignee = self.handle_atom(atm, blk_data);
+                    let assignee = self.handle_atom(atm, td);
 
                     match expr {
                         Exp::Atm(atm) => {
-                            let assigned = self.handle_atom(atm, blk_data);
-                            blk_data.instr.push(Instr::Mov64(assignee, assigned));
+                            let assigned = self.handle_atom(atm, td);
+                            td.instr.push(Instr::Mov64(assignee, assigned));
                         }
 
                         Exp::Prim { op, args } => {
 
                             match &op[..] {
                                 "read" => {
-                                    blk_data.instr.push(Instr::Call(op.clone(), 0));
-                                    blk_data.instr.push(Instr::Mov64(assignee, Arg::Reg(Reg::Rax)));
+                                    td.instr.push(Instr::Call(op.clone(), 0));
+                                    td.instr.push(Instr::Mov64(assignee, Arg::Reg(Reg::Rax)));
                                 }
 
                                 "-" => {
-                                    let assigned = self.handle_atom(&args[0], blk_data);
+                                    let assigned = self.handle_atom(&args[0], td);
 
-                                    blk_data.instr.push(Instr::Mov64(assignee.clone(), assigned));
-                                    blk_data.instr.push(Instr::Neg64(assignee));
+                                    td.instr.push(Instr::Mov64(assignee.clone(), assigned));
+                                    td.instr.push(Instr::Neg64(assignee));
                                 },
 
                                 "+" => {
-                                    let latm = self.handle_atom(&args[0], blk_data);
-                                    let ratm = self.handle_atom(&args[1], blk_data);
+                                    let latm = self.handle_atom(&args[0], td);
+                                    let ratm = self.handle_atom(&args[1], td);
 
-                                    blk_data.instr.push(Instr::Mov64(assignee.clone(), latm));
-                                    blk_data.instr.push(Instr::Add64(assignee, ratm));
+                                    td.instr.push(Instr::Mov64(assignee.clone(), latm));
+                                    td.instr.push(Instr::Add64(assignee, ratm));
                                 },
 
                                 _ => {
@@ -100,39 +100,39 @@ mod select_instruction {
             }
         }
 
-        pub fn handle_tail(&self, tail: &Tail, blk_data: &mut BlockData) {
+        pub fn select_instruction(&self, tail: &Tail, td: &mut TransformData) {
 
             match tail {
                 Tail::Seq(stmt, tail) => {
-                    self.handle_stmt(stmt, blk_data);
-                    self.handle_tail(tail, blk_data);
+                    self.handle_stmt(stmt, td);
+                    self.select_instruction(tail, td);
                 },
 
                 Tail::Return(exp) => {
 
                     match exp {
                         Exp::Atm(atm) => {
-                            let the_atom = self.handle_atom(atm, blk_data);
-                            blk_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atom));
+                            let the_atom = self.handle_atom(atm, td);
+                            td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atom));
                         },
 
                         Exp::Prim { op, args } => {
                             match &op[..] {
                                 "read" => {
-                                    blk_data.instr.push(Instr::Call(op.clone(), 0));
+                                    td.instr.push(Instr::Call(op.clone(), 0));
                                 },
 
                                 "-" => {
-                                    let the_atm = self.handle_atom(&args[0], blk_data);
-                                    blk_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atm.clone()));
-                                    blk_data.instr.push(Instr::Neg64(Arg::Reg(Reg::Rax)));
+                                    let the_atm = self.handle_atom(&args[0], td);
+                                    td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atm.clone()));
+                                    td.instr.push(Instr::Neg64(Arg::Reg(Reg::Rax)));
                                 },
                                 "+" => {
-                                    let latm = self.handle_atom(&args[0], blk_data);
-                                    let ratm = self.handle_atom(&args[1], blk_data);
+                                    let latm = self.handle_atom(&args[0], td);
+                                    let ratm = self.handle_atom(&args[1], td);
 
-                                    blk_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
-                                    blk_data.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
+                                    td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
+                                    td.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
                                 },
 
                                 _ => {
@@ -184,11 +184,11 @@ impl IRToX64Transformer {
 
         for (label, tail) in &self.cprog.labels {
 
-            let mut blk_data = BlockData::default();
+            let mut td = TransformData::default();
 
-            self.handle_tail(
+            self.select_instruction(
                 tail,
-                &mut blk_data
+                &mut td
             );
 
             let mut fn_start: Vec<Instr> = vec!();
@@ -209,7 +209,7 @@ impl IRToX64Transformer {
 
             fn_end.push(Instr::Ret);
 
-            fn_start.extend(blk_data.instr);
+            fn_start.extend(td.instr);
             fn_start.extend(fn_end);
 
             self.blocks.insert(
@@ -220,7 +220,7 @@ impl IRToX64Transformer {
                 }
             );
 
-            self.vars.extend(blk_data.vars);
+            self.vars.extend(td.vars);
         }
 
         X64Program {
