@@ -23,20 +23,21 @@ pub struct IRToX64Transformer {
 }
 
 #[derive(Default, Clone, Debug)]
-pub struct TransformData {
+pub struct BlockData {
     vars: HashSet<x64_def::Home>,
     instr: Vec<x64_def::Instr>,
 }
 
+// map the ir code to x64 instructions 
 mod select_instruction {
 
     use super::x64_def::*;
-    use super::TransformData;
+    use super::BlockData;
     use super::IRToX64Transformer;
     use super::explicate::{Atm, Stmt, Tail, Exp};
 
     impl IRToX64Transformer {
-        fn handle_atom(&self, atm: &Atm, td: &mut TransformData) -> Arg {
+        fn handle_atom(&self, atm: &Atm, blk_data: &mut BlockData) -> Arg {
 
             match atm {
                 Atm::Int(n) => {
@@ -44,7 +45,7 @@ mod select_instruction {
                 },
 
                 Atm::Var { name } => {
-                    td.vars.insert(
+                    blk_data.vars.insert(
                         Home {
                             name: name.clone(),
                             loc: VarLoc::Undefined
@@ -56,38 +57,38 @@ mod select_instruction {
             }
         }
 
-        fn handle_stmt(&self, stmt: &Stmt, td: &mut TransformData) {
+        fn handle_stmt(&self, stmt: &Stmt, blk_data: &mut BlockData) {
             match stmt {
                 Stmt::Assign(atm, expr) => {
-                    let assignee = self.handle_atom(atm, td);
+                    let assignee = self.handle_atom(atm, blk_data);
 
                     match expr {
                         Exp::Atm(atm) => {
-                            let assigned = self.handle_atom(atm, td);
-                            td.instr.push(Instr::Mov64(assignee, assigned));
+                            let assigned = self.handle_atom(atm, blk_data);
+                            blk_data.instr.push(Instr::Mov64(assignee, assigned));
                         }
 
                         Exp::Prim { op, args } => {
 
                             match &op[..] {
                                 "read" => {
-                                    td.instr.push(Instr::Call(op.clone(), 0));
-                                    td.instr.push(Instr::Mov64(assignee, Arg::Reg(Reg::Rax)));
+                                    blk_data.instr.push(Instr::Call(op.clone(), 0));
+                                    blk_data.instr.push(Instr::Mov64(assignee, Arg::Reg(Reg::Rax)));
                                 }
 
                                 "-" => {
-                                    let assigned = self.handle_atom(&args[0], td);
+                                    let assigned = self.handle_atom(&args[0], blk_data);
 
-                                    td.instr.push(Instr::Mov64(assignee.clone(), assigned));
-                                    td.instr.push(Instr::Neg64(assignee));
+                                    blk_data.instr.push(Instr::Mov64(assignee.clone(), assigned));
+                                    blk_data.instr.push(Instr::Neg64(assignee));
                                 },
 
                                 "+" => {
-                                    let latm = self.handle_atom(&args[0], td);
-                                    let ratm = self.handle_atom(&args[1], td);
+                                    let latm = self.handle_atom(&args[0], blk_data);
+                                    let ratm = self.handle_atom(&args[1], blk_data);
 
-                                    td.instr.push(Instr::Mov64(assignee.clone(), latm));
-                                    td.instr.push(Instr::Add64(assignee, ratm));
+                                    blk_data.instr.push(Instr::Mov64(assignee.clone(), latm));
+                                    blk_data.instr.push(Instr::Add64(assignee, ratm));
                                 },
 
                                 _ => {
@@ -100,39 +101,39 @@ mod select_instruction {
             }
         }
 
-        pub fn select_instruction(&self, tail: &Tail, td: &mut TransformData) {
+        pub fn select_instruction(&self, tail: &Tail, blk_data: &mut BlockData) {
 
             match tail {
                 Tail::Seq(stmt, tail) => {
-                    self.handle_stmt(stmt, td);
-                    self.select_instruction(tail, td);
+                    self.handle_stmt(stmt, blk_data);
+                    self.select_instruction(tail, blk_data);
                 },
 
                 Tail::Return(exp) => {
 
                     match exp {
                         Exp::Atm(atm) => {
-                            let the_atom = self.handle_atom(atm, td);
-                            td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atom));
+                            let the_atom = self.handle_atom(atm, blk_data);
+                            blk_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atom));
                         },
 
                         Exp::Prim { op, args } => {
                             match &op[..] {
                                 "read" => {
-                                    td.instr.push(Instr::Call(op.clone(), 0));
+                                    blk_data.instr.push(Instr::Call(op.clone(), 0));
                                 },
 
                                 "-" => {
-                                    let the_atm = self.handle_atom(&args[0], td);
-                                    td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atm.clone()));
-                                    td.instr.push(Instr::Neg64(Arg::Reg(Reg::Rax)));
+                                    let the_atm = self.handle_atom(&args[0], blk_data);
+                                    blk_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), the_atm.clone()));
+                                    blk_data.instr.push(Instr::Neg64(Arg::Reg(Reg::Rax)));
                                 },
                                 "+" => {
-                                    let latm = self.handle_atom(&args[0], td);
-                                    let ratm = self.handle_atom(&args[1], td);
+                                    let latm = self.handle_atom(&args[0], blk_data);
+                                    let ratm = self.handle_atom(&args[1], blk_data);
 
-                                    td.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
-                                    td.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
+                                    blk_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
+                                    blk_data.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
                                 },
 
                                 _ => {
@@ -147,6 +148,8 @@ mod select_instruction {
     }
 }
 
+// assign homes to variables
+// currently this is just an offset from rbp (i.e. variables live on the stack)
 mod assign_homes {
 
     use std::collections::HashSet;
@@ -170,13 +173,24 @@ mod assign_homes {
                 found_homes.insert(assigned);
             }
 
-            self.vars = found_homes;
+            if found_homes.len() > 0 {
+                self.prologue_necessary = true;
+                self.vars = found_homes;
+            }
         }
     }
 }
 
+// sometimes we need to patch instructions
+// e.g. (let ([a 42]) (let ([b a]) b))
+// one instruction will be the following
+//                 Mov64(Var("b.2"), Var("a.1"))
+// x64 does not allow us to issue a mov where both operands are
+// memory locations, and so we need to use a register to patch this operation
+// we'll use R15 for the time being
+// R15 is a callee saved register in both the Windows and System V abi, and so if patching with R15 is done
+// we need to save it to the stack beforehand, and restore it after.
 mod patch_instructions {
-
 }
 
 impl IRToX64Transformer {
@@ -208,46 +222,50 @@ impl IRToX64Transformer {
 
         for (label, tail) in &self.cprog.labels {
 
-            let mut td = TransformData::default();
+            let mut blk_data = BlockData::default();
 
             self.select_instruction(
                 tail,
-                &mut td
+                &mut blk_data
             );
-
-            let mut fn_start: Vec<Instr> = vec!();
-            let mut fn_end: Vec<Instr> = vec!();
-
-            if self.prologue_necessary {
-                fn_start.push(Instr::Push(Arg::Reg(Reg::Rbp)));
-                fn_start.push(Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)));
-
-                fn_end.push(Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)));
-                fn_end.push(Instr::Pop(Arg::Reg(Reg::Rbp)));
-
-                if self.mp_used {
-                    fn_start.insert(0, Instr::Push(Arg::Reg(self.memory_patch)));
-                    fn_end.push(Instr::Pop(Arg::Reg(self.memory_patch)));
-                }
-            }
-
-            fn_end.push(Instr::Ret);
-
-            fn_start.extend(td.instr);
-            fn_start.extend(fn_end);
 
             self.blocks.insert(
                 label.clone(),
                 Block {
                     info: (),
-                    instr: fn_start
+                    instr: blk_data.instr
                 }
             );
 
-            self.vars.extend(td.vars);
+            self.vars.extend(blk_data.vars);
         }
 
+        // this will let us know if we need to patch the entry point
         self.assign_homes();
+
+        if self.prologue_necessary {
+            // patch the entry function if we need to
+            let start = self.blocks.get_mut(&Rc::new("start".to_owned())).unwrap();
+
+            let mut fn_start = start.instr.clone();
+            let mut fn_end: Vec<Instr> = vec!();
+
+            fn_start.insert(0, Instr::Push(Arg::Reg(Reg::Rbp)));
+            fn_start.insert(1, Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)));
+
+            fn_end.push(Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)));
+            fn_end.push(Instr::Pop(Arg::Reg(Reg::Rbp)));
+
+            if self.mp_used {
+                fn_start.insert(0, Instr::Push(Arg::Reg(self.memory_patch)));
+                fn_end.push(Instr::Pop(Arg::Reg(self.memory_patch)));
+            }
+
+            fn_end.push(Instr::Ret);
+            fn_start.extend(fn_end);
+
+            start.instr = fn_start;
+        }
 
         X64Program {
             vars: self.vars.to_owned(),
