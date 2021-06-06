@@ -201,7 +201,15 @@ impl Clang {
     fn handle_exp(&mut self, exp: &Exp) -> Option<Atm> {
         match exp {
             Exp::Atm(atm) => {
-                Some(atm.clone())
+
+                match atm {
+                    Atm::Int(n) => {
+                        Some(Atm::Int(*n))
+                    },
+                    Atm::Var { .. } => {
+                        self.get_var_value(atm)
+                    }
+                }
             },
 
             Exp::Prim { op, args } => {
@@ -236,7 +244,7 @@ impl Clang {
                         None
                     }
                 }
-            }
+            },
         }
     }
 
@@ -321,7 +329,10 @@ impl Clang {
 
                 _ => {
                     self.add_error(
-                        format!("Expected the result of executing the IR to be an i64")
+                        format!("{}:{}:Expected the result of executing the IR to be an i64",
+                            crate::function!(),
+                            line!()
+                        )
                     );
 
                     None
