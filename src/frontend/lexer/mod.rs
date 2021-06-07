@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 
+#[cfg(test)]
+mod lexer_tests;
+
 use std::vec;
 
 use super::token::{Token, TokenType};
