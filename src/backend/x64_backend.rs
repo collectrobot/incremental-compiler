@@ -191,6 +191,15 @@ mod assign_homes {
 // R15 is a callee saved register in both the Windows and System V abi, and so if patching with R15 is done
 // we need to save it to the stack beforehand, and restore it after.
 mod patch_instructions {
+
+    use super::x64_def::*;
+    use super::IRToX64Transformer;
+
+    impl IRToX64Transformer {
+        pub fn patch_instructions(&mut self) {
+            self.mp_used = true;
+        }
+    }
 }
 
 impl IRToX64Transformer {
@@ -242,6 +251,9 @@ impl IRToX64Transformer {
 
         // this will let us know if we need to patch the entry point
         self.assign_homes();
+
+        // this might set mp_used
+        self.patch_instructions();
 
         if self.prologue_necessary {
             // patch the entry function if we need to
