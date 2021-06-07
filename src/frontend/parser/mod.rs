@@ -1,9 +1,12 @@
 #![allow(dead_code)]
 
+#[cfg(test)]
+mod parser_tests;
+
 use std::rc::Rc;
 
 use super::token::{Token, TokenType};
-use super::ast::{AstNode, Program};
+use super::ast::{AstNode, LetBinding, Program};
 
 //use std::collections::HashMap;
 
@@ -153,7 +156,7 @@ impl Parser {
                     return self.make_error_node("Expected a '['".to_owned(), 0)
                 }
 
-                let mut binding_vec: Vec<(Rc<String>, AstNode)> = Vec::new();
+                let mut binding_vec: Vec<LetBinding> = Vec::new();
 
                 let mut keep_parsing = true;
 
@@ -175,7 +178,12 @@ impl Parser {
                         keep_parsing = false;
                     }
 
-                    binding_vec.push((Rc::new(var), value));
+                    binding_vec.push(
+                        LetBinding {
+                            identifier: Rc::new(var),
+                            expr: value
+                        }
+                    );
                 }
 
                 if !self.expect(TokenType::Rparen) {

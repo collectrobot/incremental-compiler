@@ -246,8 +246,8 @@ impl Explicator {
                         last_tail,
                         | tail, assign |
                         self.explicate_assign(
-                            assign.1.clone(),
-                            assign.0.clone(),
+                            assign.expr.clone(),
+                            assign.identifier.clone(),
                             tail
                         )
                     );
@@ -377,8 +377,8 @@ impl Explicator {
                         body_assign,
                         | tail, assign |
                         self.explicate_assign(
-                            assign.1.clone(),
-                            assign.0.clone(),
+                            assign.expr.clone(),
+                            assign.identifier.clone(),
                             tail
                         )
                     );

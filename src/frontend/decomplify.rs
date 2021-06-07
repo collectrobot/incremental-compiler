@@ -11,7 +11,7 @@
 
 use std::rc::Rc;
 
-use super::ast::{AstNode, Program};
+use super::ast::{AstNode, LetBinding, Program};
 
 struct Rco {
     num: i64,
@@ -141,25 +141,28 @@ impl Rco {
                     let [tmp.0 (-10)] [x (+ 2 tmp.0)]
 
                 */
-                let mut changed_bindings: Vec<(Rc<String>, AstNode)> = Vec::new();
+                let mut changed_bindings: Vec<LetBinding> = Vec::new();
 
                 // check if any of the existing bindings need to be atomized
                 for i in 0..original_bindings.len() {
 
                     let current_binding = original_bindings[i].clone();
 
-                    let maybe_new_binding = self.rco_expr(current_binding.1);
+                    let maybe_new_binding = self.rco_expr(current_binding.expr);
 
                     match maybe_new_binding {
 
                         // a tmp binding was needed because of atomization
                         AstNode::Let { mut bindings, body } => {
 
-                            let var_name = current_binding.0;
+                            let var_name = current_binding.identifier;
 
                             changed_bindings.append(&mut bindings);
                             changed_bindings.push(
-                                (var_name, *body)
+                                LetBinding {
+                                    identifier: var_name,
+                                    expr: *body
+                                }
                             );
                         }
 
@@ -207,11 +210,11 @@ impl Rco {
                                     }
                                 };
 
-                            let let_binding: Vec<(Rc<String>, AstNode)> = vec!(
-                                (
-                                    var_name.clone(),
-                                    self.env_get(&*var_name).unwrap()
-                                )
+                            let let_binding: Vec<LetBinding> = vec!(
+                                LetBinding {
+                                    identifier: var_name.clone(),
+                                    expr: self.env_get(&*var_name).unwrap()
+                                }
                             );
 
                             AstNode::Let {
@@ -230,7 +233,7 @@ impl Rco {
 
                     "+" => {
 
-                        let mut let_bindings: Vec<(Rc<String>, AstNode)> = vec!();
+                        let mut let_bindings: Vec<LetBinding> = vec!();
 
                         let lhand = self.rco_atom(args[0].clone());
                         let rhand = self.rco_atom(args[1].clone());
@@ -249,7 +252,10 @@ impl Rco {
                                         match self.env_get(&(**name)) {
                                             Some(expr) => {
                                                 let_bindings.push(
-                                                    (name.clone(), expr)
+                                                    LetBinding {
+                                                        identifier: name.clone(),
+                                                        expr: expr
+                                                    }
                                                 );
 
                                                 was_atomized = true;

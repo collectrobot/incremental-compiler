@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use super::ast::{AstNode, Program};
+use super::ast::{AstNode, LetBinding, Program};
 
 fn uniquify_exp(environments: &mut Vec<HashMap<Rc<String>, Rc<String>>>, e: AstNode) -> AstNode {
     match e {
@@ -48,23 +48,27 @@ fn uniquify_exp(environments: &mut Vec<HashMap<Rc<String>, Rc<String>>>, e: AstN
 
             let last = environments.len()-1;
 
-            let mut uniq_bindings: Vec<(Rc<String>, AstNode)> = Vec::new();
+            let mut unique_bindings: Vec<LetBinding> = Vec::new();
 
             for binding in bindings {
 
                 let current_env = environments.get_mut(last).unwrap();
 
-                let the_var = binding.0;
-                let the_value = binding.1;
+                let the_var = binding.identifier;
+                let the_value = binding.expr;
 
-                //let new_name = the_var.clone() + "." + &(last+1).to_string();
                 let new_name = Rc::new((*the_var).clone() + "." + &(last+1).to_string());
 
                 current_env.insert( the_var, new_name.clone() );
 
                 let unq_value = uniquify_exp(environments, the_value);
 
-                uniq_bindings.push((new_name, unq_value));
+                unique_bindings.push(
+                    LetBinding {
+                        identifier: new_name,
+                        expr: unq_value
+                    }
+                );
             }
 
             let unq_body = uniquify_exp(environments, *body);
@@ -72,7 +76,7 @@ fn uniquify_exp(environments: &mut Vec<HashMap<Rc<String>, Rc<String>>>, e: AstN
             environments.pop();
 
             AstNode::Let {
-                bindings: uniq_bindings,
+                bindings: unique_bindings,
                 body: Box::new(unq_body)
             }
         },
