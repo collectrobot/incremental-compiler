@@ -22,30 +22,30 @@ info will be a list of local variables
 
 */
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Atm {
     Int(i64),
     Var { name: Rc<String> },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Exp {
     Atm(Atm),
     Prim { op: Rc<String>, args: Vec<Atm> },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
     Assign(Atm, Exp),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Tail {
     Return(Exp),
     Seq(Stmt, Box<Tail>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CProgram {
     pub locals: Vec<Rc<String>>, // local variables
     pub labels: HashMap<Rc<String>, Tail>,
