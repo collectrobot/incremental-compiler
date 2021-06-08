@@ -9,6 +9,9 @@
 
 */
 
+#[cfg(test)]
+mod decomplify_tests;
+
 use std::rc::Rc;
 
 use super::ast::{AstNode, LetBinding, Program};

@@ -149,11 +149,15 @@ impl Parser {
             "let" => {
 
                 if !self.expect(TokenType::Lparen) {
-                    return self.make_error_node("Expected a '('".to_owned(), 0)
+                    return self.make_error_node(
+                        format!("Expected '(', found '{}'", self.current().lexeme),
+                        0)
                 }
 
                 if !self.expect(TokenType::Lbracket) {
-                    return self.make_error_node("Expected a '['".to_owned(), 0)
+                    return self.make_error_node(
+                        format!("Expected '[', found '{}'", self.current().lexeme),
+                        0)
                 }
 
                 let mut binding_vec: Vec<LetBinding> = Vec::new();
@@ -174,7 +178,14 @@ impl Parser {
                         self.next(); // '['
                         self.next(); // begining of loop expects a variable
                     } else {
-                        self.next(); // skip ']'
+                        //self.next(); // skip ']'
+
+                        if !self.expect(TokenType::Rbracket) {
+                            return self.make_error_node(
+                                format!("Expected ']', found '{}'", self.current().lexeme),
+                                0)
+                        }
+
                         keep_parsing = false;
                     }
 
@@ -187,7 +198,9 @@ impl Parser {
                 }
 
                 if !self.expect(TokenType::Rparen) {
-                    return self.make_error_node("Expected a ')'".to_owned(), 0)
+                    return self.make_error_node(
+                        format!("Expected ')', found '{}'", self.current().lexeme),
+                        0)
                 }
 
 
@@ -244,7 +257,9 @@ impl Parser {
                         AstNode::Error {..} => { // don't there's already an error message
                         },
                         _ => {
-                            node = self.make_error_node("Expected a closing ')', found: ".to_owned(), 0)
+                            node = self.make_error_node(
+                                    format!("Expected ')', found '{}'", self.current().lexeme),
+                                    0)
                         }
                     }
                 }
@@ -278,7 +293,9 @@ impl Parser {
             info: (),
             exp: {
                 if !self.is(TokenType::Lparen) {
-                    self.make_error_node("Expected a '(', found: ".to_owned(), 0)
+                    self.make_error_node(
+                        format!("Expected '(', found '{}'", self.current().lexeme),
+                        0)
                 } else {
 
                     self.next();
@@ -288,7 +305,9 @@ impl Parser {
                             AstNode::Error {..} => { // don't there's already an error message
                             },
                             _ => {
-                                node = self.make_error_node("Expected a ')', found: ".to_owned(), 0)
+                                node = self.make_error_node(
+                                            format!("Expected ')', found '{}'", self.current().lexeme),
+                                        0)
                             }
                         }
                     }

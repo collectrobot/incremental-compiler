@@ -3,6 +3,9 @@
     this allows variable shadowing
 */
 
+#[cfg(test)]
+mod uniquify_tests;
+
 use std::collections::HashMap;
 use std::rc::Rc;
 
