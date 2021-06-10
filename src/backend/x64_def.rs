@@ -15,7 +15,7 @@ pub enum Reg {
     R12, R13, R14, R15
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Arg {
     Var(Rc<String>), // for the first pass where variables are still present
     Imm(i64),
@@ -37,7 +37,7 @@ pub struct Home {
     pub loc: VarLoc,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Instr {
     Add64(Arg, Arg),
     Sub64(Arg, Arg),
@@ -50,13 +50,13 @@ pub enum Instr {
     Jmp(Rc<String>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Block {
     pub info: (),
     pub instr: Vec<Instr>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct X64Program {
     pub vars: HashSet<Home>, // vars that have a defined home (stack or register)
     pub blocks: HashMap<Rc<String>, Block>,

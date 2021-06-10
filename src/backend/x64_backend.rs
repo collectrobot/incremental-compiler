@@ -197,7 +197,28 @@ mod patch_instructions {
 
     impl IRToX64Transformer {
         pub fn patch_instructions(&mut self) {
-            self.mp_used = true;
+            for block in &self.blocks {
+                let instructions = &block.1.instr;
+
+                for i in 0..instructions.len() {
+                    match &instructions[i] {
+                        Instr::Add64(src, dest) => {
+
+                        },
+
+                        Instr::Mov64(src, dest) => {
+
+                        },
+
+                        Instr::Sub64(src, dest) => {
+                        }
+
+                        _ => {
+                            // nothing needs to be done
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -255,12 +276,14 @@ impl IRToX64Transformer {
         // this might set mp_used
         self.patch_instructions();
 
+        let start = self.blocks.get_mut(&Rc::new("start".to_owned())).unwrap();
+
+        let mut fn_start = start.instr.clone();
+
+        let mut fn_end: Vec<Instr> = vec!();
+
         if self.prologue_necessary {
             // patch the entry function if we need to
-            let start = self.blocks.get_mut(&Rc::new("start".to_owned())).unwrap();
-
-            let mut fn_start = start.instr.clone();
-            let mut fn_end: Vec<Instr> = vec!();
 
             fn_start.insert(0, Instr::Push(Arg::Reg(Reg::Rbp)));
             fn_start.insert(1, Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)));
@@ -273,11 +296,13 @@ impl IRToX64Transformer {
                 fn_end.push(Instr::Pop(Arg::Reg(self.memory_patch)));
             }
 
-            fn_end.push(Instr::Ret);
-            fn_start.extend(fn_end);
-
-            start.instr = fn_start;
         }
+
+        fn_end.push(Instr::Ret);
+
+        fn_start.extend(fn_end);
+
+        start.instr = fn_start;
 
         X64Program {
             vars: self.vars.to_owned(),
