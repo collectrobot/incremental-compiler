@@ -195,28 +195,60 @@ mod patch_instructions {
     use super::x64_def::*;
     use super::IRToX64Transformer;
 
-    impl IRToX64Transformer {
-        pub fn patch_instructions(&mut self) {
-            for block in &self.blocks {
-                let instructions = &block.1.instr;
+    fn patch(instr: Vec<Instr>) -> (bool, Vec<Instr>) {
 
-                for i in 0..instructions.len() {
-                    match &instructions[i] {
-                        Instr::Add64(src, dest) => {
+        let mut patched_instructions = vec!();
+        let mut patched = false;
 
+        for instruction in &instr {
+            match instruction {
+                Instr::Add64(src, dest) => {
+                    patched_instructions.push(instruction.clone());
+                },
+
+                Instr::Mov64(src, dest) => {
+
+                    match (src, dest) {
+
+                        (Arg::Var(x), Arg::Var(y)) => {
+                            patched_instructions.push(Instr::Mov64(Arg::Reg(Reg::R15), Arg::Var(y.clone())));
+
+                            patched_instructions.push(
+                                Instr::Mov64(Arg::Var(x.clone()), Arg::Reg(Reg::R15)),
+                            );
+
+                            patched = true;
                         },
-
-                        Instr::Mov64(src, dest) => {
-
-                        },
-
-                        Instr::Sub64(src, dest) => {
-                        }
 
                         _ => {
-                            // nothing needs to be done
+                            patched_instructions.push(instruction.clone());
                         }
                     }
+                },
+
+                Instr::Sub64(src, dest) => {
+                    patched_instructions.push(instruction.clone());
+                }
+
+                _ => {
+                    patched_instructions.push(instruction.clone());
+                }
+            }
+        }
+
+        (patched, patched_instructions)
+    }
+
+    impl IRToX64Transformer {
+        pub fn patch_instructions(&mut self) {
+            for block in &mut self.blocks {
+                let instructions = block.1.instr.clone();
+
+                let (patched, instructions) = patch(instructions);
+
+                if patched {
+                    self.mp_used = true;
+                    block.1.instr = instructions;
                 }
             }
         }
@@ -288,6 +320,22 @@ impl IRToX64Transformer {
             fn_start.insert(0, Instr::Push(Arg::Reg(Reg::Rbp)));
             fn_start.insert(1, Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)));
 
+            // need to also allocate space for variables, i.e. decrement RSP
+            let mut rsp_decrement = 0;
+            for home in &self.vars {
+                match home.loc {
+                    VarLoc::Rbp(_) => {
+                        rsp_decrement += -8;
+                    },
+
+                    _ => {}
+                }
+            }
+
+            if rsp_decrement < 0 {
+                fn_start.insert(2, Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(rsp_decrement)));
+            }
+
             fn_end.push(Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)));
             fn_end.push(Instr::Pop(Arg::Reg(Reg::Rbp)));
 
@@ -298,7 +346,7 @@ impl IRToX64Transformer {
 
         }
 
-        fn_end.push(Instr::Ret);
+        fn_end.push(Instr::Call(Rc::new("ExitProcess".to_owned()), 0));
 
         fn_start.extend(fn_end);
 

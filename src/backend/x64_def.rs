@@ -58,6 +58,7 @@ pub struct Block {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct X64Program {
+    pub external_fn: HashSet<Rc<String>>,
     pub vars: HashSet<Home>, // vars that have a defined home (stack or register)
     pub blocks: HashMap<Rc<String>, Block>,
 }

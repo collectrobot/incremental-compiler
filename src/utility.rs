@@ -15,3 +15,10 @@ macro_rules! function {
         }
     }};
 }
+
+#[macro_export]
+macro_rules! to_ident {
+    ($s:expr) => {
+        std::rc::Rc::new($s.to_owned())
+    }
+}

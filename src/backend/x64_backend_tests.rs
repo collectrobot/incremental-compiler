@@ -12,7 +12,7 @@ use super::x64_def::*;
 use super::x64_backend::{IRToX64Transformer};
 
 #[test]
-fn x64_constant() {
+fn x64_ret_constant() {
     let ast = 
     Parser::new(
         Lexer::new("(2)")
@@ -26,8 +26,6 @@ fn x64_constant() {
             )
         ).transform();
 
-    //let x_var = Rc::new("x".to_owned());
-
     let start_label = Rc::new("start".to_owned());
 
     let block = 
@@ -35,7 +33,7 @@ fn x64_constant() {
             info: (),
             instr: vec!(
                 Instr::Mov64(Arg::Reg(Reg::Rax), Arg::Imm(2)),
-                Instr::Ret,
+                Instr::Call(Rc::new("ExitProcess".to_owned()), 0)
             )
         };
     
@@ -75,22 +73,18 @@ fn x64_add_negate() {
             instr: vec!(
                 Instr::Push(Arg::Reg(Reg::Rbp)),
                 Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
+                Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(-8)),
                 Instr::Mov64(Arg::Var(temp_var.clone()), Arg::Imm(1)),
                 Instr::Neg64(Arg::Var(temp_var.clone())),
                 Instr::Mov64(Arg::Reg(Reg::Rax), Arg::Imm(2)),
                 Instr::Add64(Arg::Reg(Reg::Rax), Arg::Var(temp_var.clone())),
                 Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
                 Instr::Pop(Arg::Reg(Reg::Rbp)),
-                Instr::Ret,
+                Instr::Call(Rc::new("ExitProcess".to_owned()), 0)
             )
         };
 
-    let mut vars = HashSet::new();
-    vars.insert(
-        Home {
-            name: temp_var,
-            loc: VarLoc::Rbp(-8),
-        });
+    let vars = x64_asm.vars.clone();
     
     let mut blocks = HashMap::new();
     blocks.insert(start_label, block);
@@ -104,10 +98,12 @@ fn x64_add_negate() {
 }
 
 #[test]
-fn x64_let_nested() {
+fn x64_patch_instruction() {
 
     // here the patch instruction phase comes into play
     // setting y to x will result in two memory operands
+    // and so we need to use the patch register to first move one
+    // value into the patch register, and then use the patch register as one of the operands
 
     let ast = 
     Parser::new(
@@ -131,15 +127,18 @@ fn x64_let_nested() {
         Block {
             info: (),
             instr: vec!(
+                Instr::Push(Arg::Reg(Reg::R15)),
                 Instr::Push(Arg::Reg(Reg::Rbp)),
                 Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
+                Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(-16)),
                 Instr::Mov64(Arg::Var(x_var.clone()), Arg::Imm(42)),
                 Instr::Mov64(Arg::Reg(Reg::R15), Arg::Var(x_var.clone())),
                 Instr::Mov64(Arg::Var(y_var.clone()), Arg::Reg(Reg::R15)),
                 Instr::Mov64(Arg::Reg(Reg::Rax), Arg::Var(y_var.clone())),
                 Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
                 Instr::Pop(Arg::Reg(Reg::Rbp)),
-                Instr::Ret,
+                Instr::Pop(Arg::Reg(Reg::R15)),
+                Instr::Call(Rc::new("ExitProcess".to_owned()), 0)
             )
         };
 
