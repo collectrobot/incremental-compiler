@@ -2,9 +2,6 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use std::env::{temp_dir};
-use std::fs::{File};
-
 use crate::frontend::lexer::{Lexer};
 use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
@@ -28,35 +25,96 @@ fn x64_print_constant() {
             explicate_control(
                 decomplify_program(uniquify_program(ast))
             )
-        ).transform();
+        )
+        .use_runtime(false)
+        .transform();
 
-    
-    let text_asm = 
-        X64Printer::new(x64_asm).print();
+    let asm_text = X64Printer::new(x64_asm).print();
 
     let expect_print =
-"extern ExitProcess
-
-global start
+"global start
 
 section .text
 
 start:
     mov rax, 2
-    call ExitProcess".to_owned();
+    ret
+".to_owned();
 
-    assert_eq!(text_asm, expect_print);
-    
-    let mut temp = temp_dir();
+    assert_eq!(asm_text, expect_print);
 
-    temp.set_file_name("rust_test.asm");
+}
 
-    let result = File::create(temp);
+#[test]
+fn x64_print_addition() {
+    let ast = 
+    Parser::new(
+        Lexer::new("(+ 2 2)")
+        .lex())
+    .parse(); 
 
-    match result {
-        Ok(_) => {},
-        Err(error) => {
-            panic!(error)
-        }
-    }
+    let x64_asm =
+        IRToX64Transformer::new(
+            explicate_control(
+                decomplify_program(uniquify_program(ast))
+            )
+        )
+        .use_runtime(false)
+        .transform();
+
+    let asm_text = X64Printer::new(x64_asm).print();
+
+    let expect_print =
+"global start
+
+section .text
+
+start:
+    mov rax, 4
+    ret
+".to_owned();
+
+    assert_eq!(asm_text, expect_print);
+
+}
+
+#[test]
+fn x64_print_negate_then_add() {
+    let ast = 
+    Parser::new(
+        Lexer::new("(+ (- 10) 42)")
+        .lex())
+    .parse(); 
+
+    let x64_asm =
+        IRToX64Transformer::new(
+            explicate_control(
+                decomplify_program(uniquify_program(ast))
+            )
+        )
+        .use_runtime(false)
+        .transform();
+
+    let asm_text = X64Printer::new(x64_asm).print();
+
+    let expect_print =
+"global start
+
+section .text
+
+start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 8
+    mov qword [rbp-8], 10
+    neg qword [rbp-8]
+    mov rax, qword [rbp-8]
+    add rax, 42
+    mov rsp, rbp
+    pop rbp
+    ret
+".to_owned();
+
+    assert_eq!(asm_text, expect_print);
+
 }

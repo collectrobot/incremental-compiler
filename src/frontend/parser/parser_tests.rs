@@ -31,11 +31,11 @@ fn parse_add_with_negate() {
     let expected = Program {
         info: (),
         exp: AstNode::Prim {
-            op: Rc::new("+".to_owned()),
+            op: crate::idstr!("+"),
             args: vec!(
                 AstNode::Int(2),
                 AstNode::Prim {
-                    op: Rc::new("-".to_owned()),
+                    op: crate::idstr!("-"),
                     args: vec!(AstNode::Int(1))
                 }
             )
@@ -58,12 +58,12 @@ fn parse_let() {
         exp: AstNode::Let {
             bindings: vec!(
                 LetBinding {
-                    identifier: Rc::new("x".to_owned()),
+                    identifier: crate::idstr!("x"),
                     expr: AstNode::Int(10)
                 }
             ),
             body: Box::new(AstNode::Var {
-                name: Rc::new("x".to_owned())
+                name: crate::idstr!("x")
             })
         }
     };
@@ -79,8 +79,8 @@ fn parse_nested_let() {
 
     let ast = parser.parse();
 
-    let var_x = Rc::new("x".to_owned());
-    let var_y = Rc::new("y".to_owned());
+    let var_x = crate::idstr!("x");
+    let var_y = crate::idstr!("y");
 
     let expected = Program {
         info: (),
@@ -100,12 +100,10 @@ fn parse_nested_let() {
                 }
             ),
             body: Box::new(AstNode::Var {
-                name: Rc::new("x".to_owned())
+                name: crate::idstr!("x")
             })
         }
     };
-
-    println!("{:#?}", ast);
 
     assert_eq!(ast, expected);
 }

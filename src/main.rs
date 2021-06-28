@@ -4,6 +4,7 @@ mod backend;
 mod frontend;
 mod interpreter;
 mod ir;
+mod types;
 
 #[macro_use]
 mod utility;

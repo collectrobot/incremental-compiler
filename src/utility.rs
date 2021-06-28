@@ -17,8 +17,42 @@ macro_rules! function {
 }
 
 #[macro_export]
-macro_rules! to_ident {
+macro_rules! idstr {
     ($s:expr) => {
-        std::rc::Rc::new($s.to_owned())
+        crate::types::IdString::new($s.to_owned())
     }
 }
+
+#[macro_export]
+macro_rules! map(
+    { $($key:expr => $value:expr),+ } => {
+        {
+            let mut m = std::collections::HashMap::new();
+            $(
+                m.insert($key, $value);
+            )+
+            m
+        }
+     };
+
+    {} => {
+        std::collections::HashMap::new()
+    }
+);
+
+#[macro_export]
+macro_rules! set(
+    { $($key:expr),+ } => {
+        {
+            let mut m = std::collections::HashSet::new();
+            $(
+                m.insert($key);
+            )+
+            m
+        }
+     };
+
+    {} => {
+        std::collections::HashSet::new()
+    }
+);

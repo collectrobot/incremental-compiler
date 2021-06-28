@@ -15,7 +15,7 @@ fn uniquify_let() {
 
     let unique_program = uniquify_program(ast);
 
-    let x_var_unq = Rc::new("x.1".to_owned());
+    let x_var_unq = crate::idstr!("x.1");
 
     let expected = Program {
         info: (),
@@ -44,8 +44,8 @@ fn uniquify_let_addition() {
 
     let unique_program = uniquify_program(ast);
 
-    let x_var_unq = Rc::new("x.1".to_owned());
-    let y_var_unq = Rc::new("y.1".to_owned());
+    let x_var_unq = crate::idstr!("x.1");
+    let y_var_unq = crate::idstr!("y.1");
 
     let expected = Program {
         info: (),
@@ -63,7 +63,7 @@ fn uniquify_let_addition() {
 
             body: Box::new(
                 AstNode::Prim {
-                    op: Rc::new("+".to_owned()),
+                    op: crate::idstr!("+"),
                     args: vec!(
                         AstNode::Var { name: x_var_unq },
                         AstNode::Var { name: y_var_unq },
@@ -86,8 +86,8 @@ fn uniquify_nested_let() {
 
     let unique_program = uniquify_program(ast);
 
-    let x_var_unq = Rc::new("x.1".to_owned());
-    let y_var_unq = Rc::new("y.2".to_owned());
+    let x_var_unq = crate::idstr!("x.1");
+    let y_var_unq = crate::idstr!("y.2");
 
     let expected = Program {
         info: (),

@@ -313,7 +313,7 @@ impl Clang {
     pub fn interpret(&mut self) -> Option<i64> {
 
         let start_label =
-            if let Some(tail) = self.cprog.labels.get(&Rc::new("start".to_owned())) {
+            if let Some(tail) = self.cprog.labels.get(&crate::idstr!("start")) {
                 Some(tail.clone())
             } else {
                 None

@@ -468,7 +468,7 @@ pub fn explicate_control(program: Program) -> CProgram {
     let instructions = explicator.explicate_tail(program.exp);
 
     let mut labels = HashMap::new();
-    labels.insert(Rc::new("start".to_owned()), instructions);
+    labels.insert(crate::idstr!("start"), instructions);
 
     // start is the entry point in clang
     CProgram {

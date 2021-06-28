@@ -8,6 +8,7 @@ use std::rc::Rc;
 
 use super::x64_def;
 
+use crate::types::{IdString};
 use crate::ir::explicate;
 
 pub struct IRToX64Transformer {
@@ -20,6 +21,7 @@ pub struct IRToX64Transformer {
     prologue_necessary: bool, // do we need a frame pointer ?
     memory_patch: x64_def::Reg, // we might need a register for the case when we end up with an operation taking to memory operands
     mp_used: bool, // flag for above value
+    runtime: bool, // should the runtime be included ? it will be by default
 }
 
 #[derive(Default, Clone, Debug)]
@@ -256,10 +258,17 @@ mod patch_instructions {
 }
 
 impl IRToX64Transformer {
+
+    pub fn use_runtime(&mut self, include: bool) -> &mut Self {
+        self.runtime = include;
+
+        self
+    }
+
     fn next_rbp_offset(&mut self) -> i64 {
         // rbp_offset starts at 0, so need to decrement
         // the offset first, so that rbp isn't overwritten
-        self.rbp_offset += -8;
+        self.rbp_offset += 8;
 
         self.rbp_offset
     }
@@ -270,11 +279,12 @@ impl IRToX64Transformer {
             blocks: HashMap::new(),
             vars: HashSet::new(),
             rbp_offset: 0,
-            prologue_tag: Rc::new("prologue".to_owned()),
-            epilogue_tag: Rc::new("epilogue".to_owned()),
+            prologue_tag: crate::idstr!("prologue"),
+            epilogue_tag: crate::idstr!("epilogue"),
             prologue_necessary: false,
             memory_patch: x64_def::Reg::R15,
-            mp_used: false
+            mp_used: false,
+            runtime: true,
         }
     }
 
@@ -308,7 +318,7 @@ impl IRToX64Transformer {
         // this might set mp_used
         self.patch_instructions();
 
-        let start = self.blocks.get_mut(&Rc::new("start".to_owned())).unwrap();
+        let start = self.blocks.get_mut(&crate::idstr!("start")).unwrap();
 
         let mut fn_start = start.instr.clone();
 
@@ -325,14 +335,14 @@ impl IRToX64Transformer {
             for home in &self.vars {
                 match home.loc {
                     VarLoc::Rbp(_) => {
-                        rsp_decrement += -8;
+                        rsp_decrement += 8;
                     },
 
                     _ => {}
                 }
             }
 
-            if rsp_decrement < 0 {
+            if rsp_decrement > 0 {
                 fn_start.insert(2, Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(rsp_decrement)));
             }
 
@@ -346,13 +356,20 @@ impl IRToX64Transformer {
 
         }
 
-        fn_end.push(Instr::Call(Rc::new("ExitProcess".to_owned()), 0));
+        let mut externals: HashSet<IdString> = HashSet::new();
+
+        if self.runtime == true {
+            externals.insert(crate::idstr!("__runtime_startup"));
+        }
+
+        fn_end.push(Instr::Ret);
 
         fn_start.extend(fn_end);
 
         start.instr = fn_start;
 
         X64Program {
+            external: externals,
             vars: self.vars.to_owned(),
             blocks: self.blocks.to_owned()
         }

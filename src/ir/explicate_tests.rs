@@ -22,7 +22,7 @@ fn explicate_constant() {
     let mut labels = HashMap::new();
 
     labels.insert(
-        Rc::new("start".to_owned()),
+        crate::idstr!("start"),
         Tail::Return(
             Exp::Atm(
                 Atm::Int(123)
@@ -53,7 +53,7 @@ fn explicate_add_constants() {
     let mut labels = HashMap::new();
 
     labels.insert(
-        Rc::new("start".to_owned()),
+        crate::idstr!("start"),
         Tail::Return(
             Exp::Atm(
                 Atm::Int(4)
@@ -83,10 +83,10 @@ fn explicate_let() {
 
     let mut labels = HashMap::new();
 
-    let x_var = Rc::new("x.1".to_owned());
+    let x_var = crate::idstr!("x.1");
 
     labels.insert(
-        Rc::new("start".to_owned()),
+        crate::idstr!("start"),
         Tail::Seq(
             Stmt::Assign(
                 Atm::Var { name: x_var.clone() },
@@ -124,11 +124,11 @@ fn explicate_let_nested() {
 
     let mut labels = HashMap::new();
 
-    let x_var = Rc::new("x.1".to_owned());
-    let y_var = Rc::new("y.2".to_owned());
+    let x_var = crate::idstr!("x.1");
+    let y_var = crate::idstr!("y.2");
 
     labels.insert(
-        Rc::new("start".to_owned()),
+        crate::idstr!("start"),
         Tail::Seq(
             Stmt::Assign(
                 Atm::Var { name: y_var.clone() },

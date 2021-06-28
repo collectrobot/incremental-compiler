@@ -1,7 +1,3 @@
-use std::rc::Rc;
-use std::collections::HashMap;
-use std::collections::HashSet;
-
 use crate::frontend::lexer::{Lexer};
 use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
@@ -24,25 +20,25 @@ fn x64_ret_constant() {
             explicate_control(
                 decomplify_program(uniquify_program(ast))
             )
-        ).transform();
+        )
+        .use_runtime(false)
+        .transform();
 
-    let start_label = Rc::new("start".to_owned());
+    let start_label = crate::idstr!("start");
 
     let block = 
         Block {
             info: (),
             instr: vec!(
                 Instr::Mov64(Arg::Reg(Reg::Rax), Arg::Imm(2)),
-                Instr::Call(Rc::new("ExitProcess".to_owned()), 0)
+                Instr::Ret
             )
         };
-    
-    let mut blocks = HashMap::new();
-    blocks.insert(start_label, block);
 
     let expected = X64Program {
-        vars: HashSet::new(),
-        blocks: blocks
+        external: crate::set!(),
+        vars: crate::set!(),
+        blocks: crate::map!(start_label => block)
     };
 
     assert_eq!(x64_asm, expected);
@@ -61,11 +57,13 @@ fn x64_add_negate() {
             explicate_control(
                 decomplify_program(uniquify_program(ast))
             )
-        ).transform();
+        )
+        .use_runtime(false)
+        .transform();
 
-    let temp_var = Rc::new("tmp.0".to_owned());
+    let temp_var = crate::idstr!("tmp.0");
 
-    let start_label = Rc::new("start".to_owned());
+    let start_label = crate::idstr!("start");
 
     let block = 
         Block {
@@ -73,25 +71,23 @@ fn x64_add_negate() {
             instr: vec!(
                 Instr::Push(Arg::Reg(Reg::Rbp)),
                 Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
-                Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(-8)),
+                Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(8)),
                 Instr::Mov64(Arg::Var(temp_var.clone()), Arg::Imm(1)),
                 Instr::Neg64(Arg::Var(temp_var.clone())),
                 Instr::Mov64(Arg::Reg(Reg::Rax), Arg::Imm(2)),
                 Instr::Add64(Arg::Reg(Reg::Rax), Arg::Var(temp_var.clone())),
                 Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
                 Instr::Pop(Arg::Reg(Reg::Rbp)),
-                Instr::Call(Rc::new("ExitProcess".to_owned()), 0)
+                Instr::Ret
             )
         };
 
     let vars = x64_asm.vars.clone();
-    
-    let mut blocks = HashMap::new();
-    blocks.insert(start_label, block);
 
     let expected = X64Program {
+        external: crate::set!(),
         vars: vars,
-        blocks: blocks
+        blocks: crate::map!(start_label => block)
     };
 
     assert_eq!(x64_asm, expected);
@@ -116,12 +112,14 @@ fn x64_patch_instruction() {
             explicate_control(
                 decomplify_program(uniquify_program(ast))
             )
-        ).transform();
+        )
+        .use_runtime(false)
+        .transform();
 
-    let x_var = Rc::new("x.1".to_owned());
-    let y_var = Rc::new("y.2".to_owned());
+    let x_var = crate::idstr!("x.1");
+    let y_var = crate::idstr!("y.2");
 
-    let start_label = Rc::new("start".to_owned());
+    let start_label = crate::idstr!("start");
 
     let block = 
         Block {
@@ -130,7 +128,7 @@ fn x64_patch_instruction() {
                 Instr::Push(Arg::Reg(Reg::R15)),
                 Instr::Push(Arg::Reg(Reg::Rbp)),
                 Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
-                Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(-16)),
+                Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(16)),
                 Instr::Mov64(Arg::Var(x_var.clone()), Arg::Imm(42)),
                 Instr::Mov64(Arg::Reg(Reg::R15), Arg::Var(x_var.clone())),
                 Instr::Mov64(Arg::Var(y_var.clone()), Arg::Reg(Reg::R15)),
@@ -138,18 +136,16 @@ fn x64_patch_instruction() {
                 Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
                 Instr::Pop(Arg::Reg(Reg::Rbp)),
                 Instr::Pop(Arg::Reg(Reg::R15)),
-                Instr::Call(Rc::new("ExitProcess".to_owned()), 0)
+                Instr::Ret
             )
         };
 
     let vars = x64_asm.vars.clone();
-    
-    let mut blocks = HashMap::new();
-    blocks.insert(start_label, block);
 
     let expected = X64Program {
+        external: crate::set!(),
         vars: vars,
-        blocks: blocks
+        blocks: crate::map!(start_label => block)
     };
 
     for block in &x64_asm.blocks {

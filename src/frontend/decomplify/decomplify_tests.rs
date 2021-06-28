@@ -15,7 +15,7 @@ fn decomplify_addition() {
 
     let decomplified = decomplify_program(ast);
 
-    let tmp = Rc::new("tmp.0".to_owned());
+    let tmp = crate::idstr!("tmp.0");
 
     let expected = Program {
         info: (),
@@ -24,7 +24,7 @@ fn decomplify_addition() {
                 LetBinding {
                     identifier: tmp.clone(),
                     expr: AstNode::Prim {
-                        op: Rc::new("+".to_owned()),
+                        op: crate::idstr!("+"),
                         args: vec!(
                             AstNode::Int(2),
                             AstNode::Int(2)
@@ -34,7 +34,7 @@ fn decomplify_addition() {
             ),
 
             body: Box::new(AstNode::Prim {
-                op: Rc::new("+".to_owned()),
+                op: crate::idstr!("+"),
                 args: vec!(
                     AstNode::Int(2),
                     AstNode::Var { name: tmp }
@@ -56,8 +56,8 @@ fn decomplify_let_read() {
 
     let decomplified = decomplify_program(ast);
 
-    let tmp = Rc::new("tmp.0".to_owned());
-    let x_var = Rc::new("x".to_owned());
+    let tmp = crate::idstr!("tmp.0");
+    let x_var = crate::idstr!("x");
 
     let expected = Program {
         info: (),
@@ -75,7 +75,7 @@ fn decomplify_let_read() {
                         LetBinding {
                             identifier: tmp.clone(),
                             expr: AstNode::Prim {
-                                op: Rc::new("read".to_owned()),
+                                op: crate::idstr!("read"),
                                 args: vec!()
                             }
                         },
@@ -83,7 +83,7 @@ fn decomplify_let_read() {
 
                     body: 
                         Box::new(AstNode::Prim {
-                            op: Rc::new("+".to_owned()),
+                            op: crate::idstr!("+"),
                             args: vec!(
                                 AstNode::Var { name: x_var},
                                 AstNode::Var { name: tmp },

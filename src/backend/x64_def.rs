@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use crate::types::{IdString};
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Reg {
     Rsp, Rbp, Rax, Rbx,
@@ -58,7 +60,7 @@ pub struct Block {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct X64Program {
-    pub external_fn: HashSet<Rc<String>>,
+    pub external: HashSet<IdString>,
     pub vars: HashSet<Home>, // vars that have a defined home (stack or register)
     pub blocks: HashMap<Rc<String>, Block>,
 }
