@@ -1,6 +1,6 @@
-// the first part of the journey from clang to x64
+// the first part of the journey from c-lang to x64
 
-#![allow(dead_code)]
+#![allow(unused)]
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -357,10 +357,6 @@ impl IRToX64Transformer {
         }
 
         let mut externals: HashSet<IdString> = HashSet::new();
-
-        if self.runtime == true {
-            externals.insert(crate::idstr!("__runtime_startup"));
-        }
 
         fn_end.push(Instr::Ret);
 

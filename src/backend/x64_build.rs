@@ -1,5 +1,8 @@
+#![allow(unused)]
+
 use std::env::{temp_dir};
-use std::fs::{File};
+use std::fs::{File, create_dir_all};
+use std::env;
 use std::io::prelude::*;
 use std::process::{Command};
 
@@ -20,6 +23,21 @@ static MSPDBCORE: &'static [u8] = include_bytes!("bin_include/win64/mspdbcore.dl
 #[cfg(target_os = "windows")]
 static TBBMALLOC: &'static [u8] = include_bytes!("bin_include/win64/tbbmalloc.dll");
 
+#[cfg(target_os = "windows")]
+static UCRT: &'static [u8] = include_bytes!("bin_include/win64/ucrt.lib");
+
+#[cfg(target_os = "windows")]
+static VCRUNTIME: &'static [u8] = include_bytes!("bin_include/win64/libvcruntime.lib");
+
+#[cfg(target_os = "windows")]
+static CMT: &'static [u8] = include_bytes!("bin_include/win64/libcmt.lib");
+
+#[cfg(target_os = "windows")]
+static KERNEL32: &'static [u8] = include_bytes!("bin_include/win64/kernel32.lib");
+
+#[cfg(target_os = "windows")]
+static UUID: &'static [u8] = include_bytes!("bin_include/win64/uuid.lib");
+
 pub struct X64Builder {
     filename: String,
     content: String,
@@ -28,12 +46,15 @@ pub struct X64Builder {
 impl X64Builder {
 
     #[cfg(target_os = "windows")]
-    fn copy_dependencies(&self) -> HashMap<String, String> {
+    fn copy_dependencies(&self, folder: String) -> HashMap<String, String> {
 
         let mut dependencies: HashMap<String, String> = HashMap::new();
 
         let mut temp_dir = temp_dir();
-        temp_dir.push("rustcomp");
+        temp_dir.push(folder);
+
+        // create folder if it doesn't exist
+        let _ = create_dir_all(temp_dir.clone()).unwrap();
 
         let mut pairs: Vec<(&'static str, &'static [u8])> = vec!();
 
@@ -42,11 +63,16 @@ impl X64Builder {
         pairs.push(("link.exe", WINLINK));
         pairs.push(("mspdbcore.dll", MSPDBCORE));
         pairs.push(("tbbmalloc.dll", TBBMALLOC));
+        pairs.push(("ucrt.lib", UCRT));
+        pairs.push(("libvcruntime.lib", VCRUNTIME));
+        pairs.push(("libcmt.lib", CMT));
+        pairs.push(("kernel32.lib", KERNEL32));
+        pairs.push(("uuid.lib", UUID));
 
         for pair in pairs {
             let mut file_path = temp_dir.clone();
 
-            file_path.set_file_name(pair.0);
+            file_path.push(pair.0);
 
             let name_as_str = pair.0.to_string();
 
@@ -79,11 +105,37 @@ impl X64Builder {
     #[cfg(target_os = "windows")]
     pub fn build(&self) {
 
-        let dependency_map = self.copy_dependencies();
+        let folder_to_install = "rustcomp".to_owned();
+
+        let mut base_folder = temp_dir();
+        base_folder.push(folder_to_install.to_owned());
+
+        let dependency_map = self.copy_dependencies(folder_to_install);
+
+        let mut file_path = base_folder.clone();
+        file_path.push(self.filename.clone());
+
+        let mut asm_file_path = file_path.clone();
+        asm_file_path.set_extension("asm");
+
+        let mut asm_file = File::create(asm_file_path.clone()).unwrap();
+        asm_file.write_all(self.content.as_bytes());
+        drop(asm_file);
+
+        let mut obj_file_path = file_path.clone();
+        obj_file_path.set_extension("obj");
+
+        let nasm_args = &[
+            "-f",
+            "win64",
+            asm_file_path.to_str().unwrap(),
+            "-o",
+            obj_file_path.to_str().unwrap()
+        ];
 
         let nasm_output =
             Command::new(dependency_map.get("nasm").unwrap())
-            .args(&["-f", "win64", &(self.filename.clone() + ".asm")])
+            .args(nasm_args)
             .output()
             .expect("Failed to call nasm");
 
@@ -91,13 +143,25 @@ impl X64Builder {
             println!("{}", std::str::from_utf8(&nasm_output.stderr).unwrap().to_owned());
         }
 
+        let mut runtime_path = base_folder.clone();
+        runtime_path.push("runtime.lib");
+
+        let mut exe_file_path = file_path.clone();
+        exe_file_path.set_extension("exe");
+
+        // this current working directory change is needed because the linker
+        // looks for certain files in the same directory
+        let previous_working_dir = env::current_dir().unwrap();
+
+        env::set_current_dir(base_folder).unwrap();
+
         let linker_output =
             Command::new(dependency_map.get("link").unwrap())
             .args(&[
-                    &(self.filename.clone() + "obj"),
-                    "runtime.lib",
-                    &("Out:\"".to_owned() + &(self.filename.clone() + ".exe") + "\""),
-                    "/Entrypoint:__runtime_startup",
+                    obj_file_path.to_str().unwrap(),
+                    runtime_path.to_str().unwrap(),
+                    "/Entry:__runtime_startup",
+                    &("/Out:".to_owned() + exe_file_path.to_str().unwrap()),
                     "/Subsystem:console",
                 ])
             .output()
@@ -105,6 +169,9 @@ impl X64Builder {
 
         if linker_output.status.code().unwrap() != 0 {
             println!("{}", std::str::from_utf8(&linker_output.stderr).unwrap().to_owned());
+            println!("{}", std::str::from_utf8(&linker_output.stdout).unwrap().to_owned());
         }
+
+        env::set_current_dir(previous_working_dir).unwrap();
     }
 }

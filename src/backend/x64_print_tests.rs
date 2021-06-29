@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::collections::HashSet;
