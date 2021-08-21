@@ -8,6 +8,11 @@ use std::process::{Command};
 
 use std::collections::HashMap;
 
+// WINDOWS:
+// these dependencies are required so that the compiler can be self contained
+// this means the user doesn't have to download Visual Studio just to be able to invoke the Microsoft linker from the command line
+// (this was figured out by trial and error)
+
 #[cfg(target_os = "windows")]
 static RUNTIME: &'static [u8] = include_bytes!("bin_include/win64/runtime.lib");
 
@@ -112,6 +117,8 @@ impl X64Builder {
 
         let dependency_map = self.copy_dependencies(folder_to_install);
 
+        // the output folder shoulder later be a command line option,
+        // or default to the users current working directory
         let mut file_path = base_folder.clone();
         file_path.push(self.filename.clone());
 
