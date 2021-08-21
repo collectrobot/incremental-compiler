@@ -3,7 +3,6 @@ name = "runtime"
 version = "0.1.0"
 authors = ["Thomas <tbre90@gmail.com>"]
 edition = "2018"
-workspace = ".."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -25,6 +24,6 @@ crate-type = ["staticlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-compiler = { path = "../compiler_datatypes" }
+datatypes = { path = "../datatypes" }
 libc = "*"
 static_vcruntime = "1.5"
