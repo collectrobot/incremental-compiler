@@ -1,1 +1,0 @@
-pub type IdString = std::rc::Rc<String>;
