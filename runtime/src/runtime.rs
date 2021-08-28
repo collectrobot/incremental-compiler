@@ -1,7 +1,7 @@
 extern crate libc;
 extern crate static_vcruntime;
 
-use libc::{c_char, c_int};
+use libc::{c_char};
 use std::ffi::CStr;
 
 extern "C" {
