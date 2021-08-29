@@ -48,40 +48,42 @@ def build_runtime():
 
     print("")
 
-def build_compiler(run = False):
+def build_compiler(parsed_args):
     # need to chdir to make cargo build work
     chdir(compiler_dir)
 
-    print("invoking cargo build in: " + compiler_dir)
+    cargo_invoke = parsed_args["op"][0]
 
-    build_or_run = "build"
-    if run == True:
-        build_or_run = "run"
+    print("invoking cargo " + cargo_invoke + " in: " + compiler_dir)
 
-    print(("running" if build_or_run == "run" else "building") + " the compiler")
+    print(
+        "running" if cargo_invoke == "run" else "building" if cargo_invoke == "build" else "testing" +
+        " the compiler"
+    )
 
     try:
-        call_extern(["cargo", build_or_run])
+        call_extern(["cargo", cargo_invoke])
         print("success")
     except BaseException as e:
-        print(build_or_run + " failed: {}".format(e))
+        print(cargo_invoke + " failed: {}".format(e))
 
-def setup_argparse():
+def do_argparse():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
 
-    parser.add_argument("--run", action="store_true")
-    parser.add_argument("--test", action="store_true")
+    parser.add_argument("--op", help="build, run, or test the compiler", nargs=1, choices=("build", "run", "test"))
 
-    parser.parse_args()
+    args = parser.parse_args()
+
+    if args == None:
+        args["op"] = "build"
+    else:
+        args = vars(args)
+    
+    return args
 
 if __name__ == "__main__":
 
-    args = setup_argparse()
-
-    run_compiler = False
-
-    if "run" in args:
-        run_compiler = True
+    args = do_argparse()
 
     build_runtime()
-    build_compiler(run_compiler)
+    build_compiler(args)
