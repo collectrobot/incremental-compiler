@@ -74,10 +74,10 @@ def do_argparse():
 
     args = parser.parse_args()
 
-    if args == None:
-        args["op"] = "build"
-    else:
-        args = vars(args)
+    args = vars(args)
+
+    if len(args) == 0:
+        args["op"] = ["build"]
     
     return args
 
