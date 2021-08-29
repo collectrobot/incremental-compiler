@@ -9,7 +9,7 @@ pub struct LetBinding {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstNode {
-    Int(i64),
+    Int(datatypes::RuntimeI64),
     Prim {op: IdString, args: Vec<AstNode>},
 
     Let {

@@ -1,3 +1,5 @@
+extern crate datatypes;
+
 mod repl;
 mod io;
 mod backend;
