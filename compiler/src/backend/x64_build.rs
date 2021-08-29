@@ -160,7 +160,7 @@ impl X64Builder {
         // looks for certain files in the same directory
         let previous_working_dir = env::current_dir().unwrap();
 
-        env::set_current_dir(base_folder).unwrap();
+        env::set_current_dir(base_folder.clone()).unwrap();
 
         let linker_output =
             Command::new(dependency_map.get("link").unwrap())
@@ -178,6 +178,8 @@ impl X64Builder {
             println!("{}", std::str::from_utf8(&linker_output.stderr).unwrap().to_owned());
             println!("{}", std::str::from_utf8(&linker_output.stdout).unwrap().to_owned());
         }
+
+        println!("output excutable to: {}", base_folder.to_str().unwrap());
 
         env::set_current_dir(previous_working_dir).unwrap();
     }
