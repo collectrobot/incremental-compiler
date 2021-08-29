@@ -1,6 +1,8 @@
 extern crate libc;
 extern crate static_vcruntime;
 
+extern crate datatypes;
+
 use libc::{c_char};
 use std::ffi::CStr;
 
@@ -20,6 +22,12 @@ pub extern "C" fn __runtime_startup() {
         ExitProcess(exitcode as u32);
     }
 
+}
+
+#[no_mangle]
+pub extern "C" fn print_int(int: datatypes::RuntimeI64) {
+    let printee = int.to_string();
+    println!("{}", printee);
 }
 
 #[no_mangle]
