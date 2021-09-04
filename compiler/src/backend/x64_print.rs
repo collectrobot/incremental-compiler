@@ -106,7 +106,7 @@ impl X64Printer {
 
                     VarLoc::Undefined => {
                         panic!(
-                            format!("Undefined variable location for '{}'", name)
+                            "Undefined variable location for '{}'", name
                         );
                     }
                 }

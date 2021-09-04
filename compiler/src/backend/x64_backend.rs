@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 use super::x64_def;
 
@@ -12,6 +13,7 @@ use crate::types::{IdString};
 use crate::ir::explicate;
 
 pub struct IRToX64Transformer {
+    externals: RefCell<HashSet<IdString>>,
     cprog: explicate::CProgram,
     blocks: HashMap<Rc<String>, x64_def::Block>,
     vars: HashSet<x64_def::Home>,
@@ -74,7 +76,12 @@ mod select_instruction {
 
                             match &op[..] {
                                 "read" => {
-                                    blk_data.instr.push(Instr::Call(op.clone(), 0));
+                                    // this function is named "read_int" in the runtime library
+                                    let runtime_name = crate::idstr!("read_int");
+
+                                    self.externals.borrow_mut().insert(runtime_name.clone());
+
+                                    blk_data.instr.push(Instr::Call(runtime_name, 0));
                                     blk_data.instr.push(Instr::Mov64(assignee, Arg::Reg(Reg::Rax)));
                                 }
 
@@ -122,8 +129,12 @@ mod select_instruction {
                         Exp::Prim { op, args } => {
                             match &op[..] {
                                 "read" => {
-                                    // in the runtime this function is named "read_int"
-                                    blk_data.instr.push(Instr::Call(crate::idstr!("read_int"), 0));
+                                    // this function is named "read_int" in the runtime library
+                                    let runtime_name = crate::idstr!("read_int");
+
+                                    self.externals.borrow_mut().insert(runtime_name.clone());
+
+                                    blk_data.instr.push(Instr::Call(runtime_name, 0));
                                 },
 
                                 "-" => {
@@ -260,16 +271,6 @@ mod patch_instructions {
 
 impl IRToX64Transformer {
 
-    fn check_if_runtime_func(&self, func: IdString) -> IdString {
-        match &**func {
-            "read" => {
-                crate::idstr!("read_int")
-            },
-
-            _ => func
-        }
-    }
-
     pub fn use_runtime(&mut self, include: bool) -> &mut Self {
         self.runtime = include;
 
@@ -286,6 +287,7 @@ impl IRToX64Transformer {
 
     pub fn new(cprog: explicate::CProgram) -> Self {
         IRToX64Transformer {
+            externals: RefCell::new(crate::set!()),
             cprog: cprog,
             blocks: HashMap::new(),
             vars: HashSet::new(),
@@ -367,8 +369,6 @@ impl IRToX64Transformer {
 
         }
 
-        let mut externals: HashSet<IdString> = HashSet::new();
-
         fn_end.push(Instr::Ret);
 
         fn_start.extend(fn_end);
@@ -376,7 +376,7 @@ impl IRToX64Transformer {
         start.instr = fn_start;
 
         X64Program {
-            external: externals,
+            external: self.externals.take(),
             vars: self.vars.to_owned(),
             blocks: self.blocks.to_owned()
         }
