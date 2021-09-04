@@ -32,5 +32,4 @@ fn x64_build_constant() {
     
     let builder = X64Builder::new("test".to_owned(), asm_text);
     builder.build();
-
 }

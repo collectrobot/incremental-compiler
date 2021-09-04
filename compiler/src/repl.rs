@@ -53,7 +53,7 @@ impl Repl {
                 help: "show the intermediate representation",
                 action: |r| {
                     if r.show_ir == true {
-                        r.show_ir;
+                        r.show_ir = false;
                     } else {
                         r.show_ir = true;
                     }
@@ -66,7 +66,7 @@ impl Repl {
                 help: "show the x64 representation",
                 action: |r| {
                     if r.show_x64 == true {
-                        r.show_x64;
+                        r.show_x64 = false;
                     } else {
                         r.show_x64 = true;
                     }
