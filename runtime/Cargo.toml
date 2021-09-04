@@ -26,4 +26,3 @@ crate-type = ["staticlib"]
 [dependencies]
 datatypes = { path = "../datatypes" }
 libc = "*"
-static_vcruntime = "1.5"
