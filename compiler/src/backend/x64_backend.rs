@@ -122,7 +122,8 @@ mod select_instruction {
                         Exp::Prim { op, args } => {
                             match &op[..] {
                                 "read" => {
-                                    blk_data.instr.push(Instr::Call(op.clone(), 0));
+                                    // in the runtime this function is named "read_int"
+                                    blk_data.instr.push(Instr::Call(crate::idstr!("read_int"), 0));
                                 },
 
                                 "-" => {
@@ -258,6 +259,16 @@ mod patch_instructions {
 }
 
 impl IRToX64Transformer {
+
+    fn check_if_runtime_func(&self, func: IdString) -> IdString {
+        match &**func {
+            "read" => {
+                crate::idstr!("read_int")
+            },
+
+            _ => func
+        }
+    }
 
     pub fn use_runtime(&mut self, include: bool) -> &mut Self {
         self.runtime = include;
