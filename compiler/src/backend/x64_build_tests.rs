@@ -33,3 +33,26 @@ fn x64_build_constant() {
     let builder = X64Builder::new("test".to_owned(), asm_text);
     builder.build();
 }
+
+#[test]
+fn x64_build_add_two_read() {
+    let ast = 
+    Parser::new(
+        Lexer::new("(+ (read) (read)")
+        .lex())
+    .parse(); 
+
+    let x64_asm =
+        IRToX64Transformer::new(
+            explicate_control(
+                decomplify_program(uniquify_program(ast))
+            )
+        )
+        .use_runtime(true)
+        .transform();
+
+    let asm_text = X64Printer::new(x64_asm).print();
+    
+    let builder = X64Builder::new("test".to_owned(), asm_text);
+    builder.build();
+}

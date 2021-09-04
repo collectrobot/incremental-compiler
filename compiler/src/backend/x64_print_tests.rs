@@ -120,3 +120,46 @@ start:
     assert_eq!(asm_text, expect_print);
 
 }
+
+#[test]
+fn x64_print_add_two_read() {
+    let ast = 
+    Parser::new(
+        Lexer::new("(+ (read) (read))")
+        .lex())
+    .parse(); 
+
+    let x64_asm =
+        IRToX64Transformer::new(
+            explicate_control(
+                decomplify_program(uniquify_program(ast))
+            )
+        )
+        .use_runtime(true)
+        .transform();
+
+    let asm_text = X64Printer::new(x64_asm).print();
+
+    let expect_print =
+"global start
+
+extern read_int
+
+section .text
+
+start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    call read_int
+    mov qword [rbp-8], rax
+    call read_int
+    add rax, qword [rbp-8]
+    mov rsp, rbp
+    pop rbp
+    ret
+".to_owned();
+
+    assert_eq!(asm_text, expect_print);
+
+}
