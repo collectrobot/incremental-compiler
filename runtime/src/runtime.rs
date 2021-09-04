@@ -1,5 +1,5 @@
 extern crate libc;
-
+extern crate static_vcruntime;
 extern crate datatypes;
 
 use libc::{c_char};
