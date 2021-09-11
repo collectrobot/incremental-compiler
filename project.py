@@ -1,9 +1,11 @@
 from os import getcwd, chdir, path, remove as remove_file
 from subprocess import run as call_extern
 from shutil import copyfile 
+from platform import system
 
 import argparse
-import sys
+
+os_kind = system()
 
 top_level_dir = getcwd()
 
@@ -117,7 +119,11 @@ def do_argparse():
 
 if __name__ == "__main__":
 
-    args = do_argparse()
+    if (os_kind == "Windows"):
+        args = do_argparse()
 
-    build_runtime()
-    build_compiler(args)
+        build_runtime()
+        build_compiler(args)
+
+    else:
+        print("{} is not supported yet.".format(os_kind))
