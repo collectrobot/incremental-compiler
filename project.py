@@ -122,7 +122,9 @@ if __name__ == "__main__":
     if (os_kind == "Windows"):
         args = do_argparse()
 
-        build_runtime()
+        if (args["op"] == "build"):
+            build_runtime()
+
         build_compiler(args)
 
     else:

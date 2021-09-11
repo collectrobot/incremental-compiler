@@ -92,9 +92,11 @@ impl X64Builder {
 
             dependencies.insert(filename_only.clone(), file_path.to_str().unwrap().to_string());
 
-            let mut file = File::create(file_path).unwrap();
-            let _ = file.write_all(pair.1).unwrap();
-            drop(file);
+            if !file_path.is_file() {
+                let mut file = File::create(file_path).unwrap();
+                let _ = file.write_all(pair.1).unwrap();
+                drop(file);
+            }
         } 
 
         dependencies

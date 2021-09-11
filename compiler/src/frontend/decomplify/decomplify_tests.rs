@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::frontend::ast::{AstNode, Program, LetBinding};
 use crate::frontend::lexer::{Lexer};
 use crate::frontend::parser::{Parser};
