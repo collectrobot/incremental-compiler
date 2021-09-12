@@ -55,16 +55,3 @@ pub extern "C" fn print_int(int: datatypes::RuntimeI64) {
     let printee = int.to_string();
     println!("{}", printee);
 }
-
-#[no_mangle]
-pub extern "C" fn println(string: *const c_char) {
-    let c_buf = string;
-
-    let c_str: &CStr = unsafe { CStr::from_ptr(c_buf) };
-
-    let str_slice: &str = c_str.to_str().unwrap();
-
-    let str_buf: String = str_slice.to_owned();
-
-    println!("{}", str_buf);
-}
