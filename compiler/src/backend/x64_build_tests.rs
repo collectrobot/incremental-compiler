@@ -30,7 +30,7 @@ fn x64_build_constant() {
 
     let asm_text = X64Printer::new(x64_asm).print();
     
-    let builder = X64Builder::new("test".to_owned(), asm_text);
+    let builder = X64Builder::new(crate::function!().to_owned(), asm_text);
     builder.build();
 }
 
@@ -53,6 +53,6 @@ fn x64_build_add_two_read() {
 
     let asm_text = X64Printer::new(x64_asm).print();
     
-    let builder = X64Builder::new("test".to_owned(), asm_text);
+    let builder = X64Builder::new(crate::function!().to_string(), asm_text);
     builder.build();
 }
