@@ -141,9 +141,9 @@ fn x64_print_add_two_read() {
     let asm_text = X64Printer::new(x64_asm).print();
 
     let expect_print =
-"global start
+"extern read_int
 
-extern read_int
+global start
 
 section .text
 

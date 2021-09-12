@@ -25,7 +25,7 @@ pub enum Arg {
     Deref(Reg, i64),
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum VarLoc {
     // a variable can live in either
     Reg(Reg), // a register or
@@ -35,7 +35,7 @@ pub enum VarLoc {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Home {
-    pub name: Rc<String>,
+    pub name: IdString,
     pub loc: VarLoc,
 }
 

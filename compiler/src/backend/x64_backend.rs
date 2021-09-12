@@ -41,6 +41,7 @@ mod select_instruction {
     use super::explicate::{Atm, Stmt, Tail, Exp};
 
     impl IRToX64Transformer {
+
         fn handle_atom(&self, atm: &Atm, blk_data: &mut BlockData) -> Arg {
 
             match atm {
@@ -52,7 +53,7 @@ mod select_instruction {
                     blk_data.vars.insert(
                         Home {
                             name: name.clone(),
-                            loc: VarLoc::Undefined
+                            loc: VarLoc::Undefined,
                         }
                     );
 
