@@ -6,9 +6,9 @@
 #![allow(dead_code)]
 
 use crate::frontend::ast::{AstNode, Program};
+use crate::types::{IdString};
 
 use std::collections::HashMap;
-use std::rc::Rc;
 
 /*
 
@@ -25,13 +25,13 @@ info will be a list of local variables
 #[derive(Clone, Debug, PartialEq)]
 pub enum Atm {
     Int(i64),
-    Var { name: Rc<String> },
+    Var { name: IdString },
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Exp {
     Atm(Atm),
-    Prim { op: Rc<String>, args: Vec<Atm> },
+    Prim { op: IdString, args: Vec<Atm> },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -47,12 +47,12 @@ pub enum Tail {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CProgram {
-    pub locals: Vec<Rc<String>>, // local variables
-    pub labels: HashMap<Rc<String>, Tail>,
+    pub locals: Vec<IdString>, // local variables
+    pub labels: HashMap<IdString, Tail>,
 }
 
 struct Explicator {
-    local_vars: Vec<Rc<String>>,
+    local_vars: Vec<IdString>,
 }
 
 #[derive(Debug, Clone)]
@@ -329,7 +329,7 @@ impl Explicator {
         }
     }
 
-    fn explicate_assign(&mut self, exp: AstNode, var: Rc<String>, acc: Tail) -> Tail {
+    fn explicate_assign(&mut self, exp: AstNode, var: IdString, acc: Tail) -> Tail {
         match &exp {
 
             AstNode::Var { name } => {

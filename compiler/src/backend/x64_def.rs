@@ -45,11 +45,11 @@ pub enum Instr {
     Sub64(Arg, Arg),
     Mov64(Arg, Arg),
     Neg64(Arg),
-    Call(Rc<String>, i64),
+    Call(IdString, i64),
     Ret,
     Push(Arg),
     Pop(Arg),
-    Jmp(Rc<String>),
+    Jmp(IdString),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -61,6 +61,6 @@ pub struct Block {
 #[derive(Clone, Debug, PartialEq)]
 pub struct X64Program {
     pub external: HashSet<IdString>,
-    pub vars: HashSet<Home>, // vars that have a defined home (stack or register)
-    pub blocks: HashMap<Rc<String>, Block>,
+    pub vars: Vec<Home>, // vars that have a defined home (stack or register)
+    pub blocks: HashMap<IdString, Block>,
 }

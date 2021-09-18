@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 datatypes = { path = "../datatypes" }
+natord = "1.0.9"

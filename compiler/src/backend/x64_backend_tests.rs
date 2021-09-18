@@ -37,7 +37,7 @@ fn x64_ret_constant() {
 
     let expected = X64Program {
         external: crate::set!(),
-        vars: crate::set!(),
+        vars: vec!(),
         blocks: crate::map!(start_label => block)
     };
 

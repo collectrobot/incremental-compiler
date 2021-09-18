@@ -2,6 +2,8 @@
 
 #![allow(unused)]
 
+extern crate natord;
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -16,7 +18,7 @@ pub struct IRToX64Transformer {
     externals: RefCell<HashSet<IdString>>,
     cprog: explicate::CProgram,
     blocks: HashMap<Rc<String>, x64_def::Block>,
-    vars: HashSet<x64_def::Home>,
+    vars: Vec::<x64_def::Home>,
     rbp_offset: i64,
     prologue_tag: Rc::<String>,
     epilogue_tag: Rc::<String>,
@@ -175,8 +177,16 @@ mod assign_homes {
     impl IRToX64Transformer {
         pub fn assign_homes(&mut self) {
 
-            let the_vars = self.vars.clone();
-            let mut found_homes: HashSet<Home> = HashSet::new();
+            let mut the_vars = self.vars.clone();
+
+            // sort variables in natural order so we end up with a deterministic
+            // output when stack variables are used
+            the_vars.sort_by(
+                |a, b|
+                natord::compare(&*a.name, &*b.name)
+            );
+
+            let mut found_homes: Vec<Home> = vec!();
 
             for var in the_vars {
                 let mut assigned = var.clone();
@@ -185,7 +195,7 @@ mod assign_homes {
 
                 assigned.loc = VarLoc::Rbp(next_rbp_offset);
 
-                found_homes.insert(assigned);
+                found_homes.push(assigned);
             }
 
             if found_homes.len() > 0 {
@@ -291,7 +301,7 @@ impl IRToX64Transformer {
             externals: RefCell::new(crate::set!()),
             cprog: cprog,
             blocks: HashMap::new(),
-            vars: HashSet::new(),
+            vars: Vec::new(),
             rbp_offset: 0,
             prologue_tag: crate::idstr!("prologue"),
             epilogue_tag: crate::idstr!("epilogue"),

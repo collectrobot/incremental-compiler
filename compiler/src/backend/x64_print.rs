@@ -8,7 +8,6 @@ use super::x64_def::*;
 
 pub struct X64Printer {
     asm: X64Program,
-    vars_in_order: Vec<Home>, // in the case of (+ (read) (read)) and stack variables are used, rbp-8 will always come before rbp-16
 }
 
 impl X64Printer {
@@ -196,35 +195,8 @@ impl X64Printer {
     }
 
     pub fn new(asm: X64Program) -> Self {
-
-        // sort stack variables so that we start at rbp-8, and go up from there (or down)
-        let mut vars_in_order: Vec<Home> = vec!();
-
-        let mut stack_vars: Vec<(i64, Home)> = vec!();
-        let mut rest_of_vars: Vec<Home> = vec!();
-
-        for var in &asm.vars {
-            match var.loc {
-                VarLoc::Rbp(n) => {
-                    stack_vars.push((n, var.clone()));
-                },
-
-                _ => {
-                    rest_of_vars.push(var.clone());
-                }
-            }
-        }
-
-        stack_vars.sort_by(|a, b| a.0.cmp(&b.0));
-
-        vars_in_order.extend(
-            stack_vars.into_iter().map(|a| a.1).collect::<Vec<Home>>()
-        );
-        vars_in_order.extend(rest_of_vars);
-
         Self {
             asm: asm,
-            vars_in_order: vars_in_order
         }
     }
 
