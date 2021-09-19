@@ -113,3 +113,50 @@ fn uniquify_nested_let() {
 
     assert_eq!(unique_program, expected);
 }
+
+#[test]
+fn uniquify_nested_let_shadowing() {
+    let ast = 
+        Parser::new(
+            Lexer::new("(let ([x 10]) (let ([x (+ x 1)]) x))")
+            .lex())
+        .parse();
+
+    let unique_program = uniquify_program(ast);
+
+    let x1_var = crate::idstr!("x.1");
+    let x2_var = crate::idstr!("x.2");
+
+    let expected = Program {
+        info: (),
+        exp: AstNode::Let {
+            bindings: vec!(
+                LetBinding {
+                    identifier: x1_var.clone(),
+                    expr: AstNode::Int(10),
+                },
+            ),
+            body: Box::new(
+                AstNode::Let {
+                    bindings: vec!(
+                        LetBinding {
+                            identifier: x2_var.clone(),
+                            expr: AstNode::Prim {
+                                op: crate::idstr!("+"),
+                                args: vec!(
+                                    AstNode::Var { name: x1_var },
+                                    AstNode::Int(1)
+                                )
+                            }
+                        }
+                    ),
+                    body: Box::new(
+                        AstNode::Var { name: x2_var }
+                    )
+                }
+            )
+        }
+    };
+
+    assert_eq!(unique_program, expected);
+}

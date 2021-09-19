@@ -7,11 +7,11 @@
 mod uniquify_tests;
 
 use std::collections::HashMap;
-use std::rc::Rc;
+use crate::types::{IdString};
 
 use super::ast::{AstNode, LetBinding, Program};
 
-fn uniquify_exp(environments: &mut Vec<HashMap<Rc<String>, Rc<String>>>, e: AstNode) -> AstNode {
+fn uniquify_exp(environments: &mut Vec<HashMap<IdString, IdString>>, e: AstNode) -> AstNode {
     match e {
         AstNode::Int(n) => AstNode::Int(n),
 
@@ -55,16 +55,16 @@ fn uniquify_exp(environments: &mut Vec<HashMap<Rc<String>, Rc<String>>>, e: AstN
 
             for binding in bindings {
 
+                let the_var = binding.identifier;
+                let the_expression = binding.expr;
+
+                let new_name = crate::idstr!((*the_var).clone() + "." + &(last+1).to_string());
+
+                let unq_value = uniquify_exp(environments, the_expression);
+
                 let current_env = environments.get_mut(last).unwrap();
 
-                let the_var = binding.identifier;
-                let the_value = binding.expr;
-
-                let new_name = Rc::new((*the_var).clone() + "." + &(last+1).to_string());
-
-                current_env.insert( the_var, new_name.clone() );
-
-                let unq_value = uniquify_exp(environments, the_value);
+                current_env.insert(the_var, new_name.clone());
 
                 unique_bindings.push(
                     LetBinding {
@@ -93,7 +93,7 @@ fn uniquify_exp(environments: &mut Vec<HashMap<Rc<String>, Rc<String>>>, e: AstN
 pub fn uniquify_program(p: Program) -> Program {
 
     let env =
-        &mut Vec::<HashMap<Rc<String>, Rc<String>>>::new();
+        &mut Vec::<HashMap<IdString, IdString>>::new();
 
     Program {
         info: p.info,

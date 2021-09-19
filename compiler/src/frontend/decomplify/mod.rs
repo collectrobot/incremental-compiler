@@ -12,13 +12,13 @@
 #[cfg(test)]
 mod decomplify_tests;
 
-use std::rc::Rc;
+use crate::types::{IdString};
 
 use super::ast::{AstNode, LetBinding, Program};
 
 struct Rco {
     num: i64,
-    env: Vec<(Rc<String>, AstNode)>,
+    env: Vec<(IdString, AstNode)>,
 }
 
 impl Rco {
@@ -29,14 +29,14 @@ impl Rco {
         }
     }
 
-    fn tmp(&mut self) -> Rc<String> {
+    fn tmp(&mut self) -> IdString {
         let current = self.num;
 
         let new_tmp_var = "tmp.".to_owned() + &current.to_string();
 
         self.num += 1;
 
-        Rc::new(new_tmp_var)
+        crate::idstr!(new_tmp_var)
     }
 
     fn env_get(&self, find: &String) -> Option<AstNode> {
@@ -49,7 +49,7 @@ impl Rco {
         return None
     }
 
-    fn env_set(&mut self, name: Rc<String>, expr: AstNode) {
+    fn env_set(&mut self, name: IdString, expr: AstNode) {
         self.env.push((name, expr));
     }
 
