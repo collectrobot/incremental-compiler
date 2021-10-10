@@ -8,6 +8,8 @@ use crate::interpreter::{interp_ast, interp_ir};
 
 use crate::io::{get_line};
 
+use crate::types::{Environment};
+
 use std::iter::Iterator;
 
 #[derive(PartialEq)]
@@ -167,7 +169,7 @@ rlang ::= exp
                 println!("{:#?}", decomplified_program);
             }
 
-            let mut interp = interp_ast::Interpreter::new(decomplified_program.clone());
+            let mut interp = interp_ast::Interpreter::new(decomplified_program.clone(), Environment::new());
 
             let result = interp.interpret();
 

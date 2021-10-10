@@ -1,21 +1,28 @@
+extern crate datatypes;
+
 use std::collections::HashMap;
 
 use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
-use crate::types::{IdString};
+use crate::types::{IdString, Environment};
+use crate::interpreter::{InterpResult};
+
+use datatypes::{RuntimeI64};
 
 // Rlang -> exp ::= int | (read) | (- exp) | (+ exp exp)
 //               | var | (let ([var exp]) exp)
 struct Rlang {
     interpretation_error: bool,
-    errors: Vec<String>
+    errors: Vec<String>,
+    env: Environment,
 }
 
 impl Rlang {
-    fn new() -> Rlang {
+    fn new(env: HashMap<IdString, RuntimeI64>) -> Rlang {
         Rlang {
             interpretation_error: false,
-            errors: vec!()
+            errors: vec!(),
+            env: env
         }
     }
 
@@ -33,57 +40,61 @@ impl Rlang {
         self.interpretation_error = true
     }
 
-    fn add_error(&mut self, string: String) -> Result <i64, String> {
+    fn add_error(&mut self, string: String) {
         self.error();
 
         self.errors.push(string.clone());
-
-        Err(string)
     }
 
-    fn interp_exp(&mut self, env: &mut HashMap<IdString, i64>, e: AstNode) -> Result<i64, String> {
+    fn interp_exp(&mut self, env: &mut Environment, e: AstNode) -> Option<RuntimeI64> {
         match e {
 
-            AstNode::Int(n) => Ok(n),
+            AstNode::Int(n) => Some(n),
 
-            AstNode::Prim{op, args} => {
+            AstNode::Prim {op, args} => {
                 match &op[..] {
                     "+" => {
                         let arg1 = self.interp_exp(env, args[0].clone());
                         let arg2 = self.interp_exp(env, args[1].clone());
 
-                        if arg1.is_err() {
-                            return self.add_error(arg1.unwrap_err())
+                        if arg1.is_none() {
+                            return None;
                         }
 
-                        if arg2.is_err() {
-                            return self.add_error(arg2.unwrap_err())
+                        if arg2.is_none() {
+                            return None;
                         }
 
-                        Ok(arg1.unwrap() + arg2.unwrap())
+                        Some(arg1.unwrap() + arg2.unwrap())
                     },
                     "-" => {
                         let arg1 = self.interp_exp(env, args[0].clone());
 
-                        Ok(-arg1.unwrap())
+                        Some(-arg1.unwrap())
                     },
                     "read" => {
                         let input = get_line();
 
-                        match input.parse::<i64>() {
-                            Ok(n) => return Ok(n),
+                        match input.parse::<RuntimeI64>() {
+                            Ok(n) => {
+                                return Some(n);
+                            },
                             Err(error) => {
-                                return self.add_error(format!("{}", error))
+                                self.add_error(format!("{}", error));
+
+                                return None;
                             }
                         };
                     },
                     _ => {  
-                            self.add_error(format!("Unrecognized operator in interp_exp: {}", op))
-                        }
+                            self.add_error(format!("Unrecognized operator in interp_exp: {}", op));
+
+                            return None;
+                    }
                 }
             },
 
-            AstNode::Let{ bindings, body } => {
+            AstNode::Let { bindings, body } => {
 
                 for binding in bindings {
                     let the_var = binding.identifier;
@@ -91,7 +102,9 @@ impl Rlang {
                     let already_exists = env.contains_key(&*the_var);
 
                     if already_exists {
-                        return self.add_error(format!("{} is already defined!", the_var))
+                        self.add_error(format!("{} is already defined!", the_var));
+
+                        return None;
                     } else {
                         let the_value = binding.expr;
                         let result = self.interp_exp(env, the_value).unwrap();
@@ -102,10 +115,10 @@ impl Rlang {
                 self.interp_exp(env, *body)
             },
 
-            AstNode::Var{ name } => {
+            AstNode::Var { name } => {
 
                 match env.get(&name) {
-                    Some(n) => Ok(*n),
+                    Some(n) => Some(*n),
                     _ => return self.add_error(format!("{} is not defined!", name))
                 }
             },
@@ -116,22 +129,28 @@ impl Rlang {
         }
     }
 
-    fn interp_r(&mut self, p: Program) -> Result<i64, String> {
-        self.interp_exp(&mut HashMap::new(), p.exp)
+    fn interp_r(&mut self, p: Program) -> Result<InterpResult, String> {
+        let mut envir = self.env.clone();
+        let value = self.interp_exp(&mut envir, p.exp);
+
+        InterpResult {
+            value: value,
+            environment: envir,
+        }
     }
 }
 
 pub struct Interpreter {
     interpreter: Rlang,
-    program: Program
+    program: Program,
 }
 
 impl Interpreter {
 
-    pub fn new(p: Program) -> Interpreter {
+    pub fn new(p: Program, env: Environment) -> Interpreter {
         Interpreter {
-            interpreter: Rlang::new(),
-            program: p 
+            interpreter: Rlang::new(env),
+            program: p,
         }
     }
 
@@ -143,8 +162,10 @@ impl Interpreter {
         self.interpreter.print_errors()
     }
 
-    pub fn interpret(&mut self) -> Result<i64, String> {
-        self.interpreter.interp_r(self.program.clone())
+    pub fn interpret(&mut self) -> Result<InterpResult, String> {
+        let result = self.interpreter.interp_r(self.program.clone());
+
+        result
     }
 
 }
