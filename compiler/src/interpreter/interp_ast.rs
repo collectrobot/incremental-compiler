@@ -1,8 +1,8 @@
+use std::collections::HashMap;
+
 use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
-
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::types::{IdString};
 
 // Rlang -> exp ::= int | (read) | (- exp) | (+ exp exp)
 //               | var | (let ([var exp]) exp)
@@ -41,7 +41,7 @@ impl Rlang {
         Err(string)
     }
 
-    fn interp_exp(&mut self, env: &mut HashMap<Rc<String>, i64>, e: AstNode) -> Result<i64, String> {
+    fn interp_exp(&mut self, env: &mut HashMap<IdString, i64>, e: AstNode) -> Result<i64, String> {
         match e {
 
             AstNode::Int(n) => Ok(n),

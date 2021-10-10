@@ -1,16 +1,17 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use crate::io::{get_line};
 use crate::ir::explicate::{CProgram, Tail, Stmt, Exp, Atm};
+
+use crate::types::{IdString};
 
 pub struct Clang {
     interpretation_error: bool,
     errors: Vec<String>,
     cprog: CProgram,
-    vars: HashMap<Rc<String>, Atm>,
+    vars: HashMap<IdString, Atm>,
 }
 
 #[derive(Debug)]
@@ -186,7 +187,7 @@ impl Clang {
         }
     }
 
-    fn extract_var(&self, atm: &Atm) -> Option<Rc<String>> {
+    fn extract_var(&self, atm: &Atm) -> Option<IdString> {
         match atm {
             Atm::Var { name } => {
                 Some(name.clone())
