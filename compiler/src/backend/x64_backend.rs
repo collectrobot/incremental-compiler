@@ -17,7 +17,7 @@ use crate::ir::explicate;
 pub struct IRToX64Transformer {
     externals: RefCell<HashSet<IdString>>,
     cprog: explicate::CProgram,
-    blocks: HashMap<Rc<String>, x64_def::Block>,
+    blocks: HashMap<IdString, x64_def::Block>,
     vars: Vec::<x64_def::Home>,
     rbp_offset: i64,
     prologue_tag: Rc::<String>,
