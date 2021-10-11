@@ -1,16 +1,16 @@
+use std::collections::{VecDeque};
+
+use std::iter::Iterator;
+
 use crate::frontend::lexer::{Lexer};
 use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::decomplify::{decomplify_program};
 use crate::ir::explicate::{explicate_control};
 use crate::backend::x64_backend::{IRToX64Transformer};
-use crate::interpreter::{interp_ast, interp_ir};
+use crate::interpreter::{interp_ast, interp_ir, CachedRuntimeCalls};
 
 use crate::io::{get_line};
-
-use crate::types::{Environment};
-
-use std::iter::Iterator;
 
 #[derive(PartialEq)]
 enum ReplResult {
@@ -169,7 +169,7 @@ rlang ::= exp
                 println!("{:#?}", decomplified_program);
             }
 
-            let mut interp = interp_ast::Interpreter::new(decomplified_program.clone(), Environment::new());
+            let mut interp = interp_ast::Interpreter::new(decomplified_program.clone(), CachedRuntimeCalls::new());
 
             let result = interp.interpret();
 

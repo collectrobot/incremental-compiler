@@ -1,11 +1,11 @@
 extern crate datatypes;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
 use crate::types::{IdString, Environment};
-use crate::interpreter::{InterpResult};
+use crate::interpreter::{InterpResult, CachedRuntimeCalls};
 
 use datatypes::{RuntimeI64};
 
@@ -14,15 +14,15 @@ use datatypes::{RuntimeI64};
 struct Rlang {
     interpretation_error: bool,
     errors: Vec<String>,
-    env: Environment,
+    crcs: CachedRuntimeCalls,
 }
 
 impl Rlang {
-    fn new(env: HashMap<IdString, RuntimeI64>) -> Rlang {
+    fn new(crcs: CachedRuntimeCalls) -> Rlang {
         Rlang {
             interpretation_error: false,
             errors: vec!(),
-            env: env
+            crcs: crcs,
         }
     }
 
@@ -75,16 +75,42 @@ impl Rlang {
                         Some(-arg1.unwrap())
                     },
                     "read" => {
-                        let input = get_line();
 
-                        match input.parse::<RuntimeI64>() {
-                            Ok(n) => {
-                                return Some(n);
-                            },
-                            Err(error) => {
-                                return self.add_error(format!("{}", error));
+                        // first check to see if there are cached calls to read
+                        // the ast interpreter should normally be called first,
+                        // so this most likely will never be the case, but check for this
+                        // in case that changes
+
+                        let id = crate::idstr!("read");
+
+                        let mut cached_reads = self.crcs.get_mut(&id);
+
+                        let mut n = None;
+
+                        if let Some(cached) = cached_reads {
+                            n = cached.pop_front();
+
+                            if cached.len() == 0 {
+                                self.crcs.remove_entry(&id);
                             }
-                        };
+                        }
+
+                        if n.is_none() {
+                            let input = get_line();
+
+                            match input.parse::<RuntimeI64>() {
+                                Ok(num) => {
+                                    n = Some(num);
+                                    self.crcs.inser
+                                },
+
+                                Err(error) => {
+                                    return self.add_error(format!("{}", error));
+                                }
+                            }
+                        }
+
+                        return n;
                     },
                     _ => {  
                             return self.add_error(format!("Unrecognized operator in interp_exp: {}", op));
@@ -100,9 +126,8 @@ impl Rlang {
                     let already_exists = env.contains_key(&*the_var);
 
                     if already_exists {
-                        self.add_error(format!("{} is already defined!", the_var));
+                        return self.add_error(format!("{} is already defined!", the_var));
 
-                        return None;
                     } else {
                         let the_value = binding.expr;
                         let result = self.interp_exp(env, the_value).unwrap();
@@ -133,12 +158,12 @@ impl Rlang {
     }
 
     fn interp_r(&mut self, p: Program) -> InterpResult {
-        let mut envir = self.env.clone();
+        let mut envir = Environment::new();
         let value = self.interp_exp(&mut envir, p.exp);
 
         InterpResult {
             value: value,
-            environment: envir,
+            cached_runtime_calls: self.crcs.clone(),
         }
     }
 }
@@ -150,9 +175,9 @@ pub struct Interpreter {
 
 impl Interpreter {
 
-    pub fn new(p: Program, env: Environment) -> Interpreter {
+    pub fn new(p: Program, crcs: CachedRuntimeCalls) -> Interpreter {
         Interpreter {
-            interpreter: Rlang::new(env),
+            interpreter: Rlang::new(crcs),
             program: p,
         }
     }
