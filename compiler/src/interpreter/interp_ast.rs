@@ -40,10 +40,12 @@ impl Rlang {
         self.interpretation_error = true
     }
 
-    fn add_error(&mut self, string: String) {
+    fn add_error(&mut self, string: String) -> Option<RuntimeI64> {
         self.error();
 
         self.errors.push(string.clone());
+
+        None
     }
 
     fn interp_exp(&mut self, env: &mut Environment, e: AstNode) -> Option<RuntimeI64> {
@@ -80,16 +82,12 @@ impl Rlang {
                                 return Some(n);
                             },
                             Err(error) => {
-                                self.add_error(format!("{}", error));
-
-                                return None;
+                                return self.add_error(format!("{}", error));
                             }
                         };
                     },
                     _ => {  
-                            self.add_error(format!("Unrecognized operator in interp_exp: {}", op));
-
-                            return None;
+                            return self.add_error(format!("Unrecognized operator in interp_exp: {}", op));
                     }
                 }
             },
@@ -119,17 +117,22 @@ impl Rlang {
 
                 match env.get(&name) {
                     Some(n) => Some(*n),
-                    _ => return self.add_error(format!("{} is not defined!", name))
+                    _ => {
+                        self.add_error(format!("{} is not defined!", name));
+                        return None;
+                    }
                 }
             },
 
             AstNode::Error {msg, token} => {
-                self.add_error(format!("{}{:?}", msg, token))
+                self.add_error(format!("{}{:?}", msg, token));
+
+                return None;
             },
         }
     }
 
-    fn interp_r(&mut self, p: Program) -> Result<InterpResult, String> {
+    fn interp_r(&mut self, p: Program) -> InterpResult {
         let mut envir = self.env.clone();
         let value = self.interp_exp(&mut envir, p.exp);
 
@@ -162,7 +165,7 @@ impl Interpreter {
         self.interpreter.print_errors()
     }
 
-    pub fn interpret(&mut self) -> Result<InterpResult, String> {
+    pub fn interpret(&mut self) -> InterpResult {
         let result = self.interpreter.interp_r(self.program.clone());
 
         result

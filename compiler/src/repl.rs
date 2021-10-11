@@ -177,7 +177,7 @@ rlang ::= exp
                 interp.print_errors();
                 continue 'repl_loop;
             } else {
-                println!("Result of interpreting the AST: {}\n", result.unwrap());
+                println!("Result of interpreting the AST: {}\n", result.value.unwrap());
             }
 
             let intermediate_repr = explicate_control(decomplified_program);
