@@ -1,6 +1,4 @@
-use std::collections::{VecDeque};
-
-use std::iter::Iterator;
+#![allow(unused_imports)]
 
 use crate::frontend::lexer::{Lexer};
 use crate::frontend::parser::{Parser};
@@ -8,7 +6,12 @@ use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::decomplify::{decomplify_program};
 use crate::ir::explicate::{explicate_control};
 use crate::backend::x64_backend::{IRToX64Transformer};
-use crate::interpreter::{interp_ast, interp_ir, CachedRuntimeCalls};
+use crate::interpreter::{
+    CachedRuntimeCall,
+    CachedFunctionResult,
+    interp_ast::AstInterpreter,
+    interp_ir,
+};
 
 use crate::io::{get_line};
 
@@ -169,11 +172,12 @@ rlang ::= exp
                 println!("{:#?}", decomplified_program);
             }
 
-            let mut interp = interp_ast::Interpreter::new(decomplified_program.clone(), CachedRuntimeCalls::new());
+            let mut interp = AstInterpreter::new(decomplified_program.clone());
 
             let result = interp.interpret();
 
-            if interp.had_error() {
+
+            if !interp.interpret_success() {
                 interp.print_errors();
                 continue 'repl_loop;
             } else {

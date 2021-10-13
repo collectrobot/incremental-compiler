@@ -9,9 +9,10 @@ use datatypes::{RuntimeI64};
 
 use crate::types::{IdString};
 
-pub type CachedRuntimeCalls = HashMap<IdString, VecDeque<RuntimeI64>>;
+pub type CachedFunctionResult = VecDeque<RuntimeI64>; // this is the cache for a specific function
+pub type CachedRuntimeCall = HashMap<IdString, CachedFunctionResult>; // this is a collection of all the cached runtime calls
 
 pub struct InterpResult {
     pub value: Option<RuntimeI64>,
-    pub cached_runtime_calls: CachedRuntimeCalls,
+    pub cached_runtime_calls: CachedRuntimeCall,
 }

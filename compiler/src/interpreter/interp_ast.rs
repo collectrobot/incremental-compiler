@@ -1,28 +1,92 @@
+#![allow(dead_code)]
+
 extern crate datatypes;
 
-use std::collections::{HashMap, VecDeque};
+use datatypes::{RuntimeI64};
 
 use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
 use crate::types::{IdString, Environment};
-use crate::interpreter::{InterpResult, CachedRuntimeCalls};
+use crate::interpreter::{InterpResult, CachedRuntimeCall, CachedFunctionResult};
 
-use datatypes::{RuntimeI64};
-
-// Rlang -> exp ::= int | (read) | (- exp) | (+ exp exp)
+// AstInterpreter -> exp ::= int | (read) | (- exp) | (+ exp exp)
 //               | var | (let ([var exp]) exp)
-struct Rlang {
+pub struct AstInterpreter {
+    program: Program,
     interpretation_error: bool,
     errors: Vec<String>,
-    crcs: CachedRuntimeCalls,
+    crcs: CachedRuntimeCall,
+    using_cached_runtime_calls: bool,
+    storing_cached_runtime_calls: bool
 }
 
-impl Rlang {
-    fn new(crcs: CachedRuntimeCalls) -> Rlang {
-        Rlang {
+impl AstInterpreter {
+
+    pub fn new(p: Program) -> AstInterpreter {
+        AstInterpreter {
+            program: p,
             interpretation_error: false,
             errors: vec!(),
-            crcs: crcs,
+            crcs: CachedRuntimeCall::new(),
+            using_cached_runtime_calls: false,
+            storing_cached_runtime_calls: true,
+        }
+    }
+
+    pub fn interpret(&mut self) -> InterpResult {
+        let mut envir = Environment::new();
+
+        let value = self.interp_exp(&mut envir, &self.program.exp.clone());
+
+        InterpResult {
+            value: value,
+            cached_runtime_calls: self.crcs.clone(),
+        }
+    }
+
+    pub fn set_cached_runtime_calls(mut self, crcs: CachedRuntimeCall) -> Self {
+        self.using_cached_runtime_calls = true;
+        self.storing_cached_runtime_calls = false;
+        self.crcs = crcs;
+
+        self
+    }
+
+    fn get_cached_runtime_fn(&mut self, fn_name: IdString) -> Option<&mut CachedFunctionResult> {
+        return self.crcs.get_mut(&fn_name);
+    }
+
+    fn get_cached_result_of(&mut self, fn_name: IdString) -> RuntimeI64 {
+        let maybe_read_calls = self.get_cached_runtime_fn(fn_name);
+
+        match maybe_read_calls {
+            Some(read_calls) => {
+                return read_calls.pop_front().unwrap();
+            },
+
+            _ => {
+                println!(
+                    "{}: was told to look for a cached call for the 'read' function; could not find it.",
+                    "ast-interpreter",
+                );
+                unreachable!();
+            }
+        }
+    }
+
+    fn set_cached_result_of(&mut self, fn_name: IdString, val: RuntimeI64) {
+        let maybe_cached_runtime_fn = self.get_cached_runtime_fn(fn_name.clone());
+
+        match maybe_cached_runtime_fn {
+            Some(cached_runtime_fn) => {
+                cached_runtime_fn.push_back(val);
+            },
+
+            _ => {
+                let mut new_fn_cache = CachedFunctionResult::new();
+                new_fn_cache.push_back(val);
+                self.crcs.insert(fn_name, new_fn_cache);
+            }
         }
     }
 
@@ -48,16 +112,16 @@ impl Rlang {
         None
     }
 
-    fn interp_exp(&mut self, env: &mut Environment, e: AstNode) -> Option<RuntimeI64> {
+    fn interp_exp(&mut self, env: &mut Environment, e: &AstNode) -> Option<RuntimeI64> {
         match e {
 
-            AstNode::Int(n) => Some(n),
+            AstNode::Int(n) => Some(*n),
 
             AstNode::Prim {op, args} => {
                 match &op[..] {
                     "+" => {
-                        let arg1 = self.interp_exp(env, args[0].clone());
-                        let arg2 = self.interp_exp(env, args[1].clone());
+                        let arg1 = self.interp_exp(env, &args[0]);
+                        let arg2 = self.interp_exp(env, &args[1]);
 
                         if arg1.is_none() {
                             return None;
@@ -70,38 +134,30 @@ impl Rlang {
                         Some(arg1.unwrap() + arg2.unwrap())
                     },
                     "-" => {
-                        let arg1 = self.interp_exp(env, args[0].clone());
+                        let arg1 = self.interp_exp(env, &args[0]);
 
                         Some(-arg1.unwrap())
                     },
                     "read" => {
 
-                        // first check to see if there are cached calls to read
-                        // the ast interpreter should normally be called first,
-                        // so this most likely will never be the case, but check for this
-                        // in case that changes
+                        // either we're using cached runtime calls (unlikely as this is the first interpreter being run)
+                        // or we're caching calls to the runtime
 
-                        let id = crate::idstr!("read");
+                        let fn_name = crate::idstr!("read");
 
-                        let mut cached_reads = self.crcs.get_mut(&id);
+                        if self.using_cached_runtime_calls {
 
-                        let mut n = None;
+                            return Some(self.get_cached_result_of(fn_name));
 
-                        if let Some(cached) = cached_reads {
-                            n = cached.pop_front();
-
-                            if cached.len() == 0 {
-                                self.crcs.remove_entry(&id);
-                            }
-                        }
-
-                        if n.is_none() {
+                        } else {
                             let input = get_line();
 
                             match input.parse::<RuntimeI64>() {
-                                Ok(num) => {
-                                    n = Some(num);
-                                    self.crcs.inser
+                                Ok(n) => {
+
+                                    self.set_cached_result_of(fn_name, n);
+
+                                    return Some(n);
                                 },
 
                                 Err(error) => {
@@ -109,8 +165,6 @@ impl Rlang {
                                 }
                             }
                         }
-
-                        return n;
                     },
                     _ => {  
                             return self.add_error(format!("Unrecognized operator in interp_exp: {}", op));
@@ -121,7 +175,7 @@ impl Rlang {
             AstNode::Let { bindings, body } => {
 
                 for binding in bindings {
-                    let the_var = binding.identifier;
+                    let the_var = binding.identifier.clone();
 
                     let already_exists = env.contains_key(&*the_var);
 
@@ -129,18 +183,18 @@ impl Rlang {
                         return self.add_error(format!("{} is already defined!", the_var));
 
                     } else {
-                        let the_value = binding.expr;
+                        let the_value = &binding.expr;
                         let result = self.interp_exp(env, the_value).unwrap();
                         let _ = env.insert(the_var, result);
                     }
                 }
 
-                self.interp_exp(env, *body)
+                self.interp_exp(env, body)
             },
 
             AstNode::Var { name } => {
 
-                match env.get(&name) {
+                match env.get(name) {
                     Some(n) => Some(*n),
                     _ => {
                         self.add_error(format!("{} is not defined!", name));
@@ -156,44 +210,4 @@ impl Rlang {
             },
         }
     }
-
-    fn interp_r(&mut self, p: Program) -> InterpResult {
-        let mut envir = Environment::new();
-        let value = self.interp_exp(&mut envir, p.exp);
-
-        InterpResult {
-            value: value,
-            cached_runtime_calls: self.crcs.clone(),
-        }
-    }
-}
-
-pub struct Interpreter {
-    interpreter: Rlang,
-    program: Program,
-}
-
-impl Interpreter {
-
-    pub fn new(p: Program, crcs: CachedRuntimeCalls) -> Interpreter {
-        Interpreter {
-            interpreter: Rlang::new(crcs),
-            program: p,
-        }
-    }
-
-    pub fn had_error(&self) -> bool {
-        !self.interpreter.interpret_success()
-    }
-
-    pub fn print_errors(&self) {
-        self.interpreter.print_errors()
-    }
-
-    pub fn interpret(&mut self) -> InterpResult {
-        let result = self.interpreter.interp_r(self.program.clone());
-
-        result
-    }
-
 }
