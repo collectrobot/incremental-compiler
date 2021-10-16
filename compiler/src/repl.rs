@@ -7,10 +7,11 @@ use crate::frontend::decomplify::{decomplify_program};
 use crate::ir::explicate::{explicate_control};
 use crate::backend::x64_backend::{IRToX64Transformer};
 use crate::interpreter::{
+    Interpreter, 
     CachedRuntimeCall,
     CachedFunctionResult,
     interp_ast::AstInterpreter,
-    interp_ir,
+    interp_ir::IrInterpreter,
 };
 
 use crate::io::{get_line};
@@ -172,16 +173,23 @@ rlang ::= exp
                 println!("{:#?}", decomplified_program);
             }
 
-            let mut interp = AstInterpreter::new(decomplified_program.clone());
+            let mut runtime_cache = CachedRuntimeCall::new();
 
-            let result = interp.interpret();
+            {
+                let mut ast_interpreter = AstInterpreter::new(decomplified_program.clone(), &mut runtime_cache);
 
+                let mut interpreter = Interpreter::new(&mut ast_interpreter);
 
-            if !interp.interpret_success() {
-                interp.print_errors();
-                continue 'repl_loop;
-            } else {
-                println!("Result of interpreting the AST: {}\n", result.value.unwrap());
+                let result = interpreter.run();
+
+                if result.had_error {
+                    for error in result.errors {
+                        println!("{}", error);
+                    }
+                    continue 'repl_loop;
+                } else {
+                    println!("Result of interpreting the AST: {}\n", result.value.unwrap());
+                }
             }
 
             let intermediate_repr = explicate_control(decomplified_program);
@@ -191,16 +199,24 @@ rlang ::= exp
                 println!("{:#?}", intermediate_repr);
             }
 
-            let mut ir_interp = interp_ir::Clang::new(intermediate_repr.clone());
-            let result = ir_interp.interpret();
+            runtime_cache.do_write(false);
 
-            if ir_interp.has_error() {
-                ir_interp.print_errors();
-                continue 'repl_loop;
-            } else {
-                println!("Result of interpreting the IR: {}\n", result.unwrap());
+            {
+                let mut ir_interpreter = IrInterpreter::new(intermediate_repr.clone(), &mut runtime_cache);
+                let mut interpreter = Interpreter::new(&mut ir_interpreter);
+
+                let result = interpreter.run();
+
+                if result.had_error {
+                    for error in result.errors {
+                        println!("{}", error);
+                    }
+                    continue 'repl_loop;
+                } else {
+                    println!("Result of interpreting the IR: {}\n", result.value.unwrap());
+                }
             }
-            
+
             let x64prog =
                 IRToX64Transformer::new(intermediate_repr)
                 .transform();

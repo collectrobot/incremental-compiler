@@ -7,86 +7,25 @@ use datatypes::{RuntimeI64};
 use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
 use crate::types::{IdString, Environment};
-use crate::interpreter::{InterpResult, CachedRuntimeCall, CachedFunctionResult};
+use crate::interpreter::{Interpretable, InterpretResult, RuntimeValue, CachedRuntimeCall, CachedFunctionResult};
 
 // AstInterpreter -> exp ::= int | (read) | (- exp) | (+ exp exp)
 //               | var | (let ([var exp]) exp)
-pub struct AstInterpreter {
+pub struct AstInterpreter<'a> {
     program: Program,
     interpretation_error: bool,
     errors: Vec<String>,
-    crcs: CachedRuntimeCall,
-    using_cached_runtime_calls: bool,
-    storing_cached_runtime_calls: bool
+    crc: &'a mut CachedRuntimeCall,
 }
 
-impl AstInterpreter {
+impl<'a> AstInterpreter<'a> {
 
-    pub fn new(p: Program) -> AstInterpreter {
+    pub fn new(p: Program, crc: &mut CachedRuntimeCall) -> AstInterpreter {
         AstInterpreter {
             program: p,
             interpretation_error: false,
             errors: vec!(),
-            crcs: CachedRuntimeCall::new(),
-            using_cached_runtime_calls: false,
-            storing_cached_runtime_calls: true,
-        }
-    }
-
-    pub fn interpret(&mut self) -> InterpResult {
-        let mut envir = Environment::new();
-
-        let value = self.interp_exp(&mut envir, &self.program.exp.clone());
-
-        InterpResult {
-            value: value,
-            cached_runtime_calls: self.crcs.clone(),
-        }
-    }
-
-    pub fn set_cached_runtime_calls(mut self, crcs: CachedRuntimeCall) -> Self {
-        self.using_cached_runtime_calls = true;
-        self.storing_cached_runtime_calls = false;
-        self.crcs = crcs;
-
-        self
-    }
-
-    fn get_cached_runtime_fn(&mut self, fn_name: IdString) -> Option<&mut CachedFunctionResult> {
-        return self.crcs.get_mut(&fn_name);
-    }
-
-    fn get_cached_result_of(&mut self, fn_name: IdString) -> RuntimeI64 {
-        let maybe_read_calls = self.get_cached_runtime_fn(fn_name);
-
-        match maybe_read_calls {
-            Some(read_calls) => {
-                return read_calls.pop_front().unwrap();
-            },
-
-            _ => {
-                println!(
-                    "{}: was told to look for a cached call for the 'read' function; could not find it.",
-                    "ast-interpreter",
-                );
-                unreachable!();
-            }
-        }
-    }
-
-    fn set_cached_result_of(&mut self, fn_name: IdString, val: RuntimeI64) {
-        let maybe_cached_runtime_fn = self.get_cached_runtime_fn(fn_name.clone());
-
-        match maybe_cached_runtime_fn {
-            Some(cached_runtime_fn) => {
-                cached_runtime_fn.push_back(val);
-            },
-
-            _ => {
-                let mut new_fn_cache = CachedFunctionResult::new();
-                new_fn_cache.push_back(val);
-                self.crcs.insert(fn_name, new_fn_cache);
-            }
+            crc: crc,
         }
     }
 
@@ -145,17 +84,26 @@ impl AstInterpreter {
 
                         let fn_name = crate::idstr!("read");
 
-                        if self.using_cached_runtime_calls {
+                        if !self.crc.write {
 
-                            return Some(self.get_cached_result_of(fn_name));
+                            let runtime_val = self.crc.get_cached_result_of(fn_name);
 
+                            match runtime_val {
+                                RuntimeValue::RuntimeI64(n) => {
+                                    return Some(n);
+                                },
+
+                                _ => {
+                                    return self.add_error(format!("Expected an integer, got: {:?})", runtime_val));
+                                },
+                            }
                         } else {
                             let input = get_line();
 
                             match input.parse::<RuntimeI64>() {
                                 Ok(n) => {
 
-                                    self.set_cached_result_of(fn_name, n);
+                                    self.crc.set_cached_result_of(fn_name, RuntimeValue::RuntimeI64(n));
 
                                     return Some(n);
                                 },
@@ -208,6 +156,20 @@ impl AstInterpreter {
 
                 return None;
             },
+        }
+    }
+}
+
+impl<'a> Interpretable for AstInterpreter<'a> {
+    fn interpret(&mut self) -> InterpretResult {
+        let mut envir = Environment::new();
+
+        let value = self.interp_exp(&mut envir, &self.program.exp.clone());
+
+        InterpretResult {
+            value: value,
+            had_error: self.interpretation_error,
+            errors: self.errors.clone(),
         }
     }
 }

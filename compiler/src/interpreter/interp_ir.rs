@@ -1,17 +1,23 @@
 #![allow(dead_code)]
 
+extern crate datatypes;
+
+use datatypes::{RuntimeI64};
+
 use std::collections::HashMap;
 
 use crate::io::{get_line};
 use crate::ir::explicate::{CProgram, Tail, Stmt, Exp, Atm};
 
 use crate::types::{IdString};
+use crate::interpreter::{Interpretable, InterpretResult, RuntimeValue, CachedRuntimeCall};
 
-pub struct Clang {
+pub struct IrInterpreter<'a> {
     interpretation_error: bool,
     errors: Vec<String>,
     cprog: CProgram,
     vars: HashMap<IdString, Atm>,
+    crc: &'a mut CachedRuntimeCall,
 }
 
 #[derive(Debug)]
@@ -26,7 +32,7 @@ enum Arithmetic {
     Unary(ArithmeticKind, Atm)
 }
 
-impl Clang {
+impl<'a> IrInterpreter<'a> {
 
     fn last_error(&self) -> String {
         if let Some(err) = self.errors.last() {
@@ -36,9 +42,11 @@ impl Clang {
         }
     }
 
-    fn add_error(&mut self, err: String) {
+    fn add_error(&mut self, err: String) -> Option<Atm> {
         self.interpretation_error = true;
         self.errors.push(err.clone());
+
+        None
     }
 
     fn get_var_value(&mut self, var: &Atm) -> Option<Atm> {
@@ -226,13 +234,39 @@ impl Clang {
                     },
 
                     "read" => {
-                        let input = get_line();
 
-                        match input.parse::<i64>() {
-                            Ok(n) => Some(Atm::Int(n)),
-                            Err(error) => {
-                                self.add_error(format!("{}", error));
-                                None
+                        // either we're using cached runtime calls (unlikely as this is the first interpreter being run)
+                        // or we're caching calls to the runtime
+
+                        let fn_name = crate::idstr!("read");
+
+                        if !self.crc.write {
+
+                            let runtime_val = self.crc.get_cached_result_of(fn_name);
+
+                            match runtime_val {
+                                RuntimeValue::RuntimeI64(n) => {
+                                    return Some(Atm::Int(n));
+                                },
+
+                                _ => {
+                                    return self.add_error(format!("Expected an integer, got: {:?})", runtime_val));
+                                },
+                            }
+                        } else {
+                            let input = get_line();
+
+                            match input.parse::<RuntimeI64>() {
+                                Ok(n) => {
+
+                                    self.crc.set_cached_result_of(fn_name, RuntimeValue::RuntimeI64(n));
+
+                                    return Some(Atm::Int(n));
+                                },
+
+                                Err(error) => {
+                                    return self.add_error(format!("{}", error));
+                                }
                             }
                         }
                     },
@@ -302,50 +336,61 @@ impl Clang {
         }
     }
 
-    pub fn new(cprog: CProgram) -> Self {
-        Clang {
+    pub fn new(cprog: CProgram, crc: &mut CachedRuntimeCall) -> IrInterpreter {
+        IrInterpreter {
             cprog: cprog,
             interpretation_error: false,
             errors: vec!(),
             vars: HashMap::new(),
+            crc: crc,
         }
     }
+}
 
-    pub fn interpret(&mut self) -> Option<i64> {
+impl<'a> Interpretable for IrInterpreter<'a> {
+    fn interpret(&mut self) -> InterpretResult {
 
-        let start_label =
-            if let Some(tail) = self.cprog.labels.get(&crate::idstr!("start")) {
-                Some(tail.clone())
-            } else {
-                None
-            };
-        
-        if let Some(tail) = start_label {
-            let maybe_atm = self.handle_tail(&tail);
-
-            match maybe_atm {
-                Some(Atm::Int(n)) => {
-                    Some(n)
-                },
-
-                _ => {
-                    self.add_error(
-                        format!("{}:{}:Expected the result of executing the IR to be an i64",
-                            crate::function!(),
-                            line!()
-                        )
-                    );
-
+        let r = {
+            let start_label =
+                if let Some(tail) = self.cprog.labels.get(&crate::idstr!("start")) {
+                    Some(tail.clone())
+                } else {
                     None
+                };
+            
+            if let Some(tail) = start_label {
+                let maybe_atm = self.handle_tail(&tail);
+
+                match maybe_atm {
+                    Some(Atm::Int(n)) => {
+                        Some(n)
+                    },
+
+                    _ => {
+                        self.add_error(
+                            format!("{}:{}:Expected the result of executing the IR to be an i64",
+                                crate::function!(),
+                                line!()
+                            )
+                        );
+
+                        None
+                    }
                 }
+
+
+            } else {
+                let err = "entry point 'start' not found!".to_owned();
+                self.add_error(err.clone());
+
+                None
             }
+        };
 
-
-        } else {
-            let err = "entry point 'start' not found!".to_owned();
-            self.add_error(err.clone());
-
-            None
+        InterpretResult {
+            value: r,
+            had_error: self.has_error(),
+            errors: self.errors.clone(),
         }
     }
 }
