@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-extern crate datatypes;
+extern crate runtime;
 
-use datatypes::{RuntimeI64};
+use runtime::types::{RuntimeI64};
 
 use std::collections::HashMap;
 

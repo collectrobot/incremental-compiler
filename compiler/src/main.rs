@@ -1,4 +1,4 @@
-extern crate datatypes;
+extern crate runtime;
 
 mod repl;
 mod io;

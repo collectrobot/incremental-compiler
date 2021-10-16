@@ -1,3 +1,7 @@
+extern crate runtime;
+
+use runtime::types::{RuntimeI64};
+
 use crate::types::{IdString};
 use super::token::{Token};
 
@@ -9,7 +13,7 @@ pub struct LetBinding {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstNode {
-    Int(datatypes::RuntimeI64),
+    Int(RuntimeI64),
     Prim {op: IdString, args: Vec<AstNode>},
 
     Let {

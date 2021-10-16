@@ -1,21 +1,16 @@
-extern crate datatypes;
+extern crate runtime;
 
 pub mod interp_ast;
 pub mod interp_ir;
 
-use std::collections::{HashMap, VecDeque};
+use runtime::types::{RuntimeI64, RuntimeValue};
 
-use datatypes::{RuntimeI64};
+use std::collections::{HashMap, VecDeque};
 
 use crate::types::{IdString};
 
 pub type CachedFunctionResult = VecDeque<RuntimeValue>;
 pub type CRC = HashMap<IdString, CachedFunctionResult>;
-
-#[derive(Debug)]
-pub enum RuntimeValue {
-    RuntimeI64(RuntimeI64),
-}
 
 pub trait Interpretable {
     fn interpret(&mut self) -> InterpretResult;

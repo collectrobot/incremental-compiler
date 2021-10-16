@@ -1,13 +1,13 @@
 #![allow(dead_code)]
 
-extern crate datatypes;
+extern crate runtime;
 
-use datatypes::{RuntimeI64};
+use runtime::types::{RuntimeI64};
 
 use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
-use crate::types::{IdString, Environment};
-use crate::interpreter::{Interpretable, InterpretResult, RuntimeValue, CachedRuntimeCall, CachedFunctionResult};
+use crate::types::{Environment};
+use crate::interpreter::{Interpretable, InterpretResult, RuntimeValue, CachedRuntimeCall};
 
 // AstInterpreter -> exp ::= int | (read) | (- exp) | (+ exp exp)
 //               | var | (let ([var exp]) exp)
