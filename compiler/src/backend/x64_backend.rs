@@ -2,7 +2,7 @@
 
 #![allow(unused)]
 
-extern crate natord;
+use natord;
 
 use std::collections::HashMap;
 use std::collections::HashSet;

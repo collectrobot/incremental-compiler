@@ -3,7 +3,6 @@ name = "runtime"
 version = "0.1.0"
 authors = ["Thomas <tbre90@gmail.com>"]
 edition = "2018"
-crate-type = ["staticlib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,6 +15,10 @@ panic = "abort"
 lto = true
 opt-level = 0
 panic = "abort"
+
+[lib]
+name = "runtime"
+crate-type = ["staticlib", "lib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

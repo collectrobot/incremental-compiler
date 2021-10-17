@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 
-extern crate runtime;
-
 use runtime::types::{RuntimeI64};
 
 use crate::frontend::ast::{Program, AstNode};

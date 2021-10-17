@@ -1,5 +1,3 @@
-extern crate runtime;
-
 use runtime::types::{RuntimeI64};
 
 use crate::types::{IdString};

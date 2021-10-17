@@ -1,5 +1,3 @@
-extern crate runtime;
-
 mod repl;
 mod io;
 mod backend;

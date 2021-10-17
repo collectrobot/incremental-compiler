@@ -13,21 +13,28 @@ compiler_dir = top_level_dir + "/" + "compiler"
 
 runtime_dir = top_level_dir + "/" + "runtime"
 
-def build_runtime():
+def build_runtime(args):
 
     success = True
+
+    build_directory = "/" + args["build_type"] # either /release or /debug
+    cargo_build_type = args["build_type"]
+    if cargo_build_type == "debug":
+        cargo_build_type = "" # --debug isn't a cargo flag, however, --release is
+    else:
+        cargo_build_type = "--" + cargo_build_type
 
     print("building runtime")
 
     # need to chdir to make cargo build work
     chdir(runtime_dir)
 
-    static_lib_src = runtime_dir + "/target" + "/release" + "/runtime.lib"
-    static_lib_fully_linked = runtime_dir + "/target" + "/release" + "/runtime_fully_linked.lib"
+    static_lib_src = runtime_dir + "/target" + build_directory + "/runtime.lib"
+    static_lib_fully_linked = runtime_dir + "/target" + build_directory + "/runtime_fully_linked.lib"
 
     print("invoking cargo build in: " + runtime_dir)
     try:
-        call_extern(["cargo", "build", "--release"])
+        call_extern([x for x in ["cargo", "build", cargo_build_type] if x])
         print("success")
     except BaseException as e:
         print("build failed: {}".format(e))
@@ -84,11 +91,11 @@ def build_runtime():
 
     return success
 
-def build_compiler(parsed_args):
+def build_compiler(args):
     # need to chdir to make cargo build work
     chdir(compiler_dir)
 
-    cargo_invoke = parsed_args["op"][0]
+    cargo_invoke = args["op"]
 
     print("invoking cargo " + cargo_invoke + " in: " + compiler_dir)
 
@@ -106,24 +113,32 @@ def build_compiler(parsed_args):
 def do_argparse():
     parser = argparse.ArgumentParser(argument_default=argparse.SUPPRESS)
 
-    parser.add_argument("--op", help="build, run, or test the compiler", nargs=1, choices=("build", "run", "test"))
+    parser.add_argument("--op", help="build, run, or test the compiler", nargs=1, choices=("build", "run", "test"), default="build")
+    parser.add_argument("--build-type", help="release or debug build", nargs=1, choices=("release", "debug"), default="debug")
 
     args = parser.parse_args()
 
     args = vars(args)
 
-    if len(args) == 0:
-        args["op"] = ["build"]
+    de_list_args = {}
+
+    for arg in args:
+        if isinstance(args[arg], list):
+            de_list_args[arg] = args[arg][0]
+        else:
+            de_list_args[arg] = args[arg]
+
+    print(de_list_args)
     
-    return args
+    return de_list_args
 
 if __name__ == "__main__":
 
+    args = do_argparse()
     if (os_kind == "Windows"):
-        args = do_argparse()
 
         if (args["op"] == "build"):
-            build_runtime()
+            build_runtime(args)
 
         build_compiler(args)
 

@@ -1,3 +1,6 @@
+#![allow(unused)]
+#![allow(dead_code)]
+
 pub type RuntimeString = String;
 pub type RuntimeI64 = i64;
 
