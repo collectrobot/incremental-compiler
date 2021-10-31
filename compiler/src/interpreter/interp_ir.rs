@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 use runtime::types::{RuntimeI64};
 
@@ -245,10 +246,6 @@ impl<'a> IrInterpreter<'a> {
                             match runtime_val {
                                 RuntimeValue::RuntimeI64(n) => {
                                     return Some(Atm::Int(n));
-                                },
-
-                                _ => {
-                                    return self.add_error(format!("Expected an integer, got: {:?})", runtime_val));
                                 },
                             }
                         } else {

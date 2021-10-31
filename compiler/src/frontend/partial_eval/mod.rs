@@ -5,37 +5,22 @@
 mod partial_eval_tests;
 
 use runtime::types::{RuntimeI64, RuntimeValue};
+use crate::types::{IdString};
 use crate::frontend::ast::*;
 
-fn partial_eval_unary(exp: AstNode) -> AstNode {
-    exp
-}
+fn partial_eval_unary(operation: IdString, r: &AstNode) -> AstNode {
 
-fn partial_eval_binary(exp: AstNode) -> AstNode {
-    exp
-}
+    let right = partial_eval_exp(r);
 
-fn partial_eval_prim(exp: AstNode) -> AstNode {
-    match exp {
-        AstNode::Prim { op, .. } => {
-            match &op[..] {
-                "read" => {
-                    AstNode::Prim {
-                        op: op.clone(),
-                        args: vec!()
-                    }
-                },
-
-                "+" => {
-                    partial_eval_binary(exp)
-                },
-
-                "-" => {
-                    partial_eval_unary(exp)
+    match &operation[..] {
+        "-" => {
+            match right {
+                AstNode::Int(n) => {
+                    AstNode::Int(0 - n)
                 },
 
                 _ => {
-                    exp
+                    r.clone()
                 },
             }
         },
@@ -46,53 +31,101 @@ fn partial_eval_prim(exp: AstNode) -> AstNode {
     }
 }
 
-fn partial_eval_exp(exp: AstNode) -> AstNode {
+fn partial_eval_binary(operation: IdString, l: &AstNode, r: &AstNode) -> AstNode {
 
-    match exp {
-        AstNode::Int(_) => {
-            exp
-        },
+    let left = partial_eval_exp(l);
+    let right = partial_eval_exp(r);
 
-        AstNode::Var { .. } => {
-            exp
-        },
+    match &operation[..] {
+        "+" => {
+            match (&left, &right) {
+                (AstNode::Int(n), AstNode::Int(m)) => {
+                    AstNode::Int(n + m)
+                },
 
-        AstNode::Prim { .. } => {
-            partial_eval_prim(exp)
-        }
-
-
-        AstNode::Let { bindings, body } => {
-
-            //let mut partially_evaluated_bindings: Vec<LetBinding> = vec!();
-
-            /*
-            for binding in bindings {
-                partially_evaluated_bindings.push(
-                    LetBinding {
-                        identifier: binding.identifier.clone(),
-                        expr: partial_eval_exp(binding.expr)
+                _ => {
+                    AstNode::Prim {
+                        op: operation.clone(),
+                        args: vec!(left, right)
                     }
-                )
-            }
-            */
-
-            AstNode::Let {
-                bindings: bindings.iter().map(|b| LetBinding { identifier: b.identifier.clone(), expr: partial_eval_exp(b.expr)} ).collect(),
-                body: Box::new(partial_eval_exp(*body))
+                }
             }
         },
 
         _ => {
-            exp
+            unreachable!();
         }
     }
 }
 
-fn partial_evaluate(ast: Program) -> Program {
+fn partial_eval_prim(exp: &AstNode) -> AstNode {
+    match exp {
+        AstNode::Prim { op, args } => {
+            match &op[..] {
+
+                "+" => {
+                    partial_eval_binary(op.clone(), &args[0], &args[1])
+                },
+
+                "-" => {
+                    partial_eval_unary(op.clone(), &args[0])
+                },
+
+                _ => {
+                    exp.clone()
+                },
+            }
+        },
+
+        _ => {
+            unreachable!();
+        }
+    }
+}
+
+fn partial_eval_exp(exp: &AstNode) -> AstNode {
+
+    match exp {
+        AstNode::Int(_) => {
+            exp.clone()
+        }
+
+        AstNode::Prim { .. } => {
+            partial_eval_prim(&exp)
+        },
+
+        AstNode::Let { bindings, body } => {
+            
+            let new_bindings = 
+                bindings
+                    .iter()
+                    .map(
+                        | b |
+                        LetBinding {
+                            identifier: b.identifier.clone(),
+                            expr: partial_eval_exp(&b.expr)
+                        }
+                    )
+                    .collect();
+
+            AstNode::Let {
+                bindings: new_bindings,
+                body: Box::new(partial_eval_exp(*&body))
+            }
+        },
+
+        _ => {
+            exp.clone()
+        }
+    }
+}
+
+pub fn partial_evaluate(ast: Program) -> Program {
+
+    let result = partial_eval_exp(&ast.exp);
 
     Program {
         info: (),
-        exp: partial_eval_exp(ast.exp)
+        exp: result
     }
 }

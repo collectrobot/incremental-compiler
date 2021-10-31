@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_imports)]
 
 use runtime::types::{RuntimeI64};
 
@@ -89,10 +90,6 @@ impl<'a> AstInterpreter<'a> {
                             match runtime_val {
                                 RuntimeValue::RuntimeI64(n) => {
                                     return Some(n);
-                                },
-
-                                _ => {
-                                    return self.add_error(format!("Expected an integer, got: {:?})", runtime_val));
                                 },
                             }
                         } else {
