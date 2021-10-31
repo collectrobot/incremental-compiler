@@ -30,7 +30,7 @@ fn contains_only(ast: &AstNode, should_contain: &AstNode) -> bool {
 }
 
 #[test]
-fn partial_evalute_add_two_constants() {
+fn partial_evalute_add_constants() {
     let program = helper("(+ 2 2)");
 
     let expected = 
@@ -46,13 +46,29 @@ fn partial_evalute_add_two_constants() {
 }
 
 #[test]
-fn partial_eval_add_three_constants() {
+fn partial_eval_add_constant_add_constants() {
     let program = helper("(+ 2 (+ 2 2))");
 
     let expected = 
         Program {
             info: (),
             exp: AstNode::Int(6)
+        };
+
+    assert_eq!(
+        program,
+        expected
+    )
+}
+
+#[test]
+fn partial_eval_negate_add_constant_negate_constant() {
+    let program = helper("(- (+ 3 (- 5))))))");
+
+    let expected = 
+        Program {
+            info: (),
+            exp: AstNode::Int(2)
         };
 
     assert_eq!(
