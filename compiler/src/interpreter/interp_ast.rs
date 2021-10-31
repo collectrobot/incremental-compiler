@@ -120,7 +120,7 @@ impl<'a> AstInterpreter<'a> {
                 for binding in bindings {
                     let the_var = binding.identifier.clone();
 
-                    let already_exists = env.contains_key(&*the_var);
+                    let already_exists = env.exists(the_var.clone());
 
                     if already_exists {
                         return self.add_error(format!("{} is already defined!", the_var));
@@ -128,7 +128,7 @@ impl<'a> AstInterpreter<'a> {
                     } else {
                         let the_value = &binding.expr;
                         let result = self.interp_exp(env, the_value).unwrap();
-                        let _ = env.insert(the_var, result);
+                        let _ = env.insert(the_var, AstNode::Int(result));
                     }
                 }
 
@@ -137,8 +137,8 @@ impl<'a> AstInterpreter<'a> {
 
             AstNode::Var { name } => {
 
-                match env.get(name) {
-                    Some(n) => Some(*n),
+                match env.get_value_of(name.clone()) {
+                    Some(&AstNode::Int(n)) => Some(n),
                     _ => {
                         self.add_error(format!("{} is not defined!", name));
                         return None;

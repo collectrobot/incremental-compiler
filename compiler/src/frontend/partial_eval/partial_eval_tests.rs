@@ -8,17 +8,17 @@ use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::decomplify::{decomplify_program};
 
-use super::{partial_evaluate};
+use super::{PartialEvaluator};
 
 fn helper(prog: &'static str) -> Program {
-    partial_evaluate(
+    PartialEvaluator::new(
         uniquify_program(
             Parser::new(
                 Lexer::new(prog)
                 .lex())
             .parse()
         )   
-    )
+    ).evaluate()
 }
 
 fn contains_only(ast: &AstNode, should_contain: &AstNode) -> bool {
@@ -119,6 +119,54 @@ fn partial_eval_add_read_negate_add_two_constants() {
                     AstNode::Int(-8)
                 )
             }
+        };
+
+    assert_eq!(
+        program,
+        expected
+    )
+}
+
+#[test]
+fn partial_eval_let_add_constants_in_add_constant() {
+    let program = helper("(let ([x (+ 10 23)]) (+ x 100))");
+
+    let expected = 
+        Program {
+            info: (),
+            exp: AstNode::Int(133)
+        };
+
+    assert_eq!(
+        program,
+        expected
+    )
+}
+
+#[test]
+fn partial_eval_let_constant_let_var_in_add_vars() {
+    let program = helper("(let ([x 10][y x]) (+ x y)");
+
+    let expected = 
+        Program {
+            info: (),
+            exp: AstNode::Int(20)
+        };
+
+    assert_eq!(
+        program,
+        expected
+    )
+}
+
+#[test]
+fn partial_eval_nested_let() {
+    let program = helper("(let ([x (let ([x (+ 123 (- 23))]) (x))]) (x))");
+
+    let expected = 
+        Program {
+            info: (),
+            exp: AstNode::Int(100)
         };
 
     assert_eq!(

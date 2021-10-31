@@ -5,127 +5,197 @@
 mod partial_eval_tests;
 
 use runtime::types::{RuntimeI64, RuntimeValue};
-use crate::types::{IdString};
+
+use crate::types::{IdString, Environment};
 use crate::frontend::ast::*;
 
-fn partial_eval_unary(operation: IdString, r: &AstNode) -> AstNode {
-
-    let right = partial_eval_exp(r);
-
-    match &operation[..] {
-        "-" => {
-            match right {
-                AstNode::Int(n) => {
-                    AstNode::Int(0 - n)
-                },
-
-                _ => {
-                    r.clone()
-                },
-            }
-        },
-
-        _ => {
-            unreachable!();
-        }
-    }
+struct PartialEvaluator {
+    prog: Program,
+    env: Environment,
 }
 
-fn partial_eval_binary(operation: IdString, l: &AstNode, r: &AstNode) -> AstNode {
+impl PartialEvaluator {
 
-    let left = partial_eval_exp(l);
-    let right = partial_eval_exp(r);
+    pub fn new(prog: Program) -> Self {
+        PartialEvaluator {
+            prog: prog,
+            env: Environment::new(), 
+        }
+    }
 
-    match &operation[..] {
-        "+" => {
-            match (&left, &right) {
-                (AstNode::Int(n), AstNode::Int(m)) => {
-                    AstNode::Int(n + m)
-                },
+    pub fn evaluate(&mut self) -> Program {
 
-                _ => {
-                    AstNode::Prim {
-                        op: operation.clone(),
-                        args: vec!(left, right)
-                    }
+        let p = &self.prog.exp.clone();
+        let result = self.partial_eval_exp(p);
+
+        Program {
+            info: (),
+            exp: result
+        }
+    }
+
+    fn partial_eval_negate(&mut self, r: &AstNode) -> AstNode {
+
+        let right = self.partial_eval_exp(r);
+
+        match &right {
+            AstNode::Int(n) => {
+                return AstNode::Int(0 - n);
+            },
+
+            AstNode::Var { name } => {
+                let value = self.env.get_value_of(name.clone());
+
+                if let Some(&AstNode::Int(n)) = value {
+                    return AstNode::Int(0 - n);
+                }
+            },
+
+            _ => {
+            },
+        }
+
+        AstNode::Prim {
+            op: crate::idstr!("-"),
+            args: vec!(right.clone())
+        }
+    }
+
+    fn partial_eval_add(&mut self, l: &AstNode, r: &AstNode) -> AstNode {
+
+        let left = self.partial_eval_exp(l);
+        let right = self.partial_eval_exp(r);
+
+        match (&left, &right) {
+            (AstNode::Int(n), AstNode::Int(m)) => {
+                AstNode::Int(n + m)
+            },
+
+            (AstNode::Var { name: left_name }, AstNode::Var { name: right_name }) => {
+                let lvv = self.env.get_value_of(left_name.clone()).unwrap();
+                let rvv = self.env.get_value_of(right_name.clone()).unwrap();
+
+                let left_value = if let AstNode::Int(n) = lvv {
+                    n
+                } else {
+                    unreachable!();
+                };
+
+                let right_value = if let AstNode::Int(m) = rvv {
+                    m
+                } else {
+                    unreachable!();
+                };
+
+                AstNode::Int(left_value + right_value)
+            }
+
+            (AstNode::Var { ref name }, AstNode::Int(n)) | 
+            (AstNode::Int(n), AstNode::Var { ref name })
+            => {
+                let vv = self.env.get_value_of(name.clone()).unwrap();
+                let value = if let AstNode::Int(m) = vv {
+                    m
+                } else {
+                    unreachable!();
+                };
+
+                AstNode::Int(
+                    value + n
+                )
+            },
+
+            _ => {
+                AstNode::Prim {
+                    op: crate::idstr!("+"),
+                    args: vec!(left, right)
                 }
             }
-        },
-
-        _ => {
-            unreachable!();
         }
     }
-}
 
-fn partial_eval_prim(exp: &AstNode) -> AstNode {
-    match exp {
-        AstNode::Prim { op, args } => {
-            match &op[..] {
+    fn partial_eval_prim(&mut self, exp: &AstNode) -> AstNode {
+        match exp {
+            AstNode::Prim { op, args } => {
+                match &op[..] {
 
-                "+" => {
-                    partial_eval_binary(op.clone(), &args[0], &args[1])
-                },
+                    "+" => {
+                        self.partial_eval_add(&args[0], &args[1])
+                    },
 
-                "-" => {
-                    partial_eval_unary(op.clone(), &args[0])
-                },
+                    "-" => {
+                        self.partial_eval_negate(&args[0])
+                    },
 
-                _ => {
-                    exp.clone()
-                },
+                    _ => {
+                        exp.clone()
+                    },
+                }
+            },
+
+            _ => {
+                unreachable!();
             }
-        },
-
-        _ => {
-            unreachable!();
         }
     }
-}
 
-fn partial_eval_exp(exp: &AstNode) -> AstNode {
+    fn partial_eval_exp(&mut self, exp: &AstNode) -> AstNode {
 
-    match exp {
-        AstNode::Int(_) => {
-            exp.clone()
-        }
+        match exp {
+            AstNode::Var { .. } => {
+                exp.clone()
+            },
 
-        AstNode::Prim { .. } => {
-            partial_eval_prim(&exp)
-        },
+            AstNode::Int(_) => {
+                exp.clone()
+            }
 
-        AstNode::Let { bindings, body } => {
-            
-            let new_bindings = 
-                bindings
-                    .iter()
-                    .map(
-                        | b |
-                        LetBinding {
-                            identifier: b.identifier.clone(),
-                            expr: partial_eval_exp(&b.expr)
+            AstNode::Prim { .. } => {
+                self.partial_eval_prim(&exp)
+            },
+
+            AstNode::Let { bindings, body } => {
+                
+                let new_bindings = 
+                    bindings
+                        .iter()
+                        .map(
+                            | b |
+                            {
+                                let new_expr = self.partial_eval_exp(&b.expr);
+                                self.env.insert(b.identifier.clone(), new_expr.clone());
+                                LetBinding {
+                                    identifier: b.identifier.clone(),
+                                    expr: new_expr 
+                                }
+                            }
+                        )
+                        .collect();
+
+                let new_body = self.partial_eval_exp(*&body);
+                match new_body {
+                    // we were able to evaluate everything to a single integer
+                    AstNode::Int(_) => {
+                        new_body
+                    },
+
+                    AstNode::Var { name } => {
+                        self.env.get_value_of(name.clone()).unwrap().clone()
+                    },
+
+                    _ => {
+                        AstNode::Let {
+                            bindings: new_bindings,
+                            body: Box::new(self.partial_eval_exp(*&body))
                         }
-                    )
-                    .collect();
+                    }
+                }
 
-            AstNode::Let {
-                bindings: new_bindings,
-                body: Box::new(partial_eval_exp(*&body))
+            },
+
+            _ => {
+                exp.clone()
             }
-        },
-
-        _ => {
-            exp.clone()
         }
-    }
-}
-
-pub fn partial_evaluate(ast: Program) -> Program {
-
-    let result = partial_eval_exp(&ast.exp);
-
-    Program {
-        info: (),
-        exp: result
     }
 }
