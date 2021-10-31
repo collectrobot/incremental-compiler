@@ -4,6 +4,7 @@ use crate::frontend::lexer::{Lexer};
 use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::decomplify::{decomplify_program};
+use crate::frontend::partial_eval::{partially_evaluate};
 use crate::ir::explicate::{explicate_control};
 use crate::backend::x64_backend::{IRToX64Transformer};
 use crate::interpreter::{
@@ -166,7 +167,9 @@ rlang ::= exp
 
             let uniquified_program = uniquify_program(program);
 
-            let decomplified_program = decomplify_program(uniquified_program);
+            let partially_evaluated_program = partially_evaluate(uniquified_program);
+
+            let decomplified_program = decomplify_program(partially_evaluated_program);
 
             if self.show_ast {
                 println!("AST:");

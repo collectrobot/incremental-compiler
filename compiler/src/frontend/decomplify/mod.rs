@@ -178,11 +178,11 @@ impl Rco {
 
                 let new_body = self.rco_expr(*body.clone());
 
-                changed_bindings.append(&mut untouched_bindings);
+                untouched_bindings.append(&mut changed_bindings);
 
                 let new_node =
                     AstNode::Let {
-                        bindings: changed_bindings,
+                        bindings: untouched_bindings,
                         body: Box::new(new_body),
                     };
 

@@ -4,6 +4,7 @@ use crate::frontend::ast::{AstNode};
 
 pub type IdString = std::rc::Rc<String>;
 
+#[derive(Debug)]
 pub struct Environment {
     map: HashMap<IdString, AstNode>,
 }

@@ -8,17 +8,17 @@ use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::decomplify::{decomplify_program};
 
-use super::{PartialEvaluator};
+use super::{partially_evaluate};
 
 fn helper(prog: &'static str) -> Program {
-    PartialEvaluator::new(
+    partially_evaluate(
         uniquify_program(
             Parser::new(
                 Lexer::new(prog)
                 .lex())
             .parse()
         )   
-    ).evaluate()
+    )
 }
 
 fn contains_only(ast: &AstNode, should_contain: &AstNode) -> bool {

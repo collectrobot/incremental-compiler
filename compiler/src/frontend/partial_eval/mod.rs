@@ -23,15 +23,13 @@ impl PartialEvaluator {
         }
     }
 
-    pub fn evaluate(&mut self) -> Program {
+    pub fn evaluate(&mut self) -> AstNode {
 
         let p = &self.prog.exp.clone();
         let result = self.partial_eval_exp(p);
 
-        Program {
-            info: (),
-            exp: result
-        }
+        result
+
     }
 
     fn partial_eval_negate(&mut self, r: &AstNode) -> AstNode {
@@ -68,49 +66,44 @@ impl PartialEvaluator {
 
         match (&left, &right) {
             (AstNode::Int(n), AstNode::Int(m)) => {
-                AstNode::Int(n + m)
+                return AstNode::Int(n + m);
             },
 
             (AstNode::Var { name: left_name }, AstNode::Var { name: right_name }) => {
-                let lvv = self.env.get_value_of(left_name.clone()).unwrap();
-                let rvv = self.env.get_value_of(right_name.clone()).unwrap();
+                let lvv = self.env.get_value_of(left_name.clone());
+                let rvv = self.env.get_value_of(right_name.clone());
 
-                let left_value = if let AstNode::Int(n) = lvv {
-                    n
-                } else {
-                    unreachable!();
-                };
+                match (lvv, rvv) {
+                    (Some(&AstNode::Int(n)), Some(&AstNode::Int(m))) => {
+                        return AstNode::Int(n + m);
+                    },
 
-                let right_value = if let AstNode::Int(m) = rvv {
-                    m
-                } else {
-                    unreachable!();
-                };
+                    _ => {}
+                }
 
-                AstNode::Int(left_value + right_value)
             }
 
             (AstNode::Var { ref name }, AstNode::Int(n)) | 
             (AstNode::Int(n), AstNode::Var { ref name })
             => {
-                let vv = self.env.get_value_of(name.clone()).unwrap();
-                let value = if let AstNode::Int(m) = vv {
-                    m
-                } else {
-                    unreachable!();
-                };
+                let vv = self.env.get_value_of(name.clone());
 
-                AstNode::Int(
-                    value + n
-                )
+                match vv {
+                    Some(&AstNode::Int(m)) => {
+                        return AstNode::Int(n + m);
+                    },
+
+                    _ => {}
+                }
             },
 
             _ => {
-                AstNode::Prim {
-                    op: crate::idstr!("+"),
-                    args: vec!(left, right)
-                }
             }
+        }
+
+        AstNode::Prim {
+            op: crate::idstr!("+"),
+            args: vec!(left, right)
         }
     }
 
@@ -197,5 +190,15 @@ impl PartialEvaluator {
                 exp.clone()
             }
         }
+    }
+}
+
+pub fn partially_evaluate(prog: Program) -> Program {
+    let mut pe = PartialEvaluator::new(prog);
+    let result = pe.evaluate();
+
+    Program {
+        info: (),
+        exp: result
     }
 }
