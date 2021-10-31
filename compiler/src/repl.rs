@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 
+use runtime::types::{RuntimeI64};
+
 use crate::frontend::lexer::{Lexer};
 use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
@@ -19,7 +21,8 @@ use crate::io::{get_line};
 
 #[derive(PartialEq)]
 enum ReplResult {
-    KeepGoing,
+    BackToStart,
+    KeepExecuting,
     Stop
 }  
 
@@ -31,10 +34,13 @@ struct ReplCommand {
 }
 
 pub struct Repl {
+    buffer: String,
+    current_line: String,
     commands: Vec<ReplCommand>,
     show_ast: bool,
     show_ir: bool,
     show_x64: bool,
+    multiline_mode: bool,
 }
 
 impl Repl {
@@ -52,7 +58,7 @@ impl Repl {
                         r.show_ast = true;
                     }
 
-                    ReplResult::KeepGoing
+                    ReplResult::BackToStart
                 },
             },
             ReplCommand {
@@ -65,7 +71,7 @@ impl Repl {
                         r.show_ir = true;
                     }
 
-                    ReplResult::KeepGoing
+                    ReplResult::BackToStart
                 },
             },
             ReplCommand {
@@ -78,29 +84,58 @@ impl Repl {
                         r.show_x64 = true;
                     }
 
-                    ReplResult::KeepGoing
+                    ReplResult::BackToStart
                 },
             },
             ReplCommand { cmd: ":grammer", help: "print the grammer", action: Repl::print_grammer },
-            ReplCommand { cmd: ":quit", help: "exit the repl", action: Repl::quit }
+            ReplCommand { cmd: ":quit", help: "exit the repl", action: Repl::quit },
+            ReplCommand {
+                cmd: ";;",
+                help: "enter ;; to enter multiline mode and then ;; to evaluate",
+                action: |r| {
+                    if r.multiline_mode {
+                        println!("--multiline mode off\n");
+
+                        r.multiline_mode = false;
+
+                        // edge case if user just toggles on then off without entering anything
+                        if r.buffer == ";;" {
+                            r.clear_input();
+                            return ReplResult::BackToStart
+                        }
+
+                        r.current_line = r.buffer.clone();
+
+                        ReplResult::KeepExecuting
+                    } else {
+                        println!("--multiline mode on\n");
+
+                        r.multiline_mode = true;
+                        ReplResult::BackToStart
+                    }
+                }
+            },
         );
 
         Repl {
+            buffer: "".to_owned(),
+            current_line: "".to_owned(),
             commands: commands,
             show_ast: false,
             show_ir: false,
             show_x64: false,
+            multiline_mode: false,
         }
     }
 
     fn print_grammer(&mut self) -> ReplResult {
         println!("
-expr  ::= int | (read) | ('-' exp) | ('+' exp exp)
-        | var | (let ([var exp]+) exp)
-rlang ::= exp
+expr    ::= int | (read) | ('-' exp) | ('+' exp exp)
+          | var | (let ([var exp]+) exp)
+program ::= (exp)
         ");
 
-        ReplResult::KeepGoing
+        ReplResult::BackToStart
     }
 
     fn quit(&mut self) -> ReplResult {
@@ -115,11 +150,10 @@ rlang ::= exp
         }
         println!("");
 
-        ReplResult::KeepGoing
+        ReplResult::BackToStart
     }
 
     fn handle_repl_command(&mut self, command: &str) -> ReplResult {
-
         let cmd = self.commands.iter().position(|&c| c.cmd == command);
 
         match cmd {
@@ -129,30 +163,60 @@ rlang ::= exp
                 action(self)
             },
 
-            _ => ReplResult::KeepGoing
+            _ => ReplResult::BackToStart
         }
     }
 
+    fn check_input_for_command(&mut self) -> ReplResult {
+        let input = self.current_line.clone();
+
+        if input == "" {
+            ReplResult::BackToStart
+        } else if input.starts_with(":") ||
+                  input == ";;" {
+                self.handle_repl_command(&input)
+        } else if self.multiline_mode {
+            ReplResult::BackToStart
+        } else {
+            ReplResult::KeepExecuting
+        }
+    }
+
+    fn read_line(&mut self) {
+        self.current_line = get_line();
+
+        if self.multiline_mode {
+            self.buffer.push_str(&self.current_line.clone());
+        }
+    }
+
+    fn clear_input(&mut self) {
+        self.current_line = "".to_owned();
+        self.buffer = self.current_line.clone();
+    }
+
     pub fn run(&mut self) -> std::io::Result<()> {
-        let mut input: String;
         'repl_loop:loop {
 
-            input = get_line();
+            self.read_line();
 
-            if input == "" {
-                continue 'repl_loop;
-            }
+            let what_to_do = self.check_input_for_command();
 
-            if input.starts_with(":") {
-                if self.handle_repl_command(&input) == ReplResult::Stop {
+            match what_to_do {
+                ReplResult::Stop => {
                     println!("Goodbye!");
                     break 'repl_loop;
-                }
+                },
 
-                continue 'repl_loop;
+                ReplResult::BackToStart => {
+                    continue 'repl_loop;
+                },
+
+                _ => {
+                },
             }
 
-            let mut l = Lexer::new(&input);
+            let mut l = Lexer::new(&self.current_line);
 
             let tokens = l.lex();
 
@@ -178,6 +242,8 @@ rlang ::= exp
 
             let mut runtime_cache = CachedRuntimeCall::new();
 
+            let mut _maybe_ast_interp_result: Option<RuntimeI64> = None;
+
             {
                 let mut ast_interpreter = AstInterpreter::new(decomplified_program.clone(), &mut runtime_cache);
 
@@ -191,7 +257,7 @@ rlang ::= exp
                     }
                     continue 'repl_loop;
                 } else {
-                    println!("Result of interpreting the AST: {}\n", result.value.unwrap());
+                    _maybe_ast_interp_result = result.value;
                 }
             }
 
@@ -203,6 +269,8 @@ rlang ::= exp
             }
 
             runtime_cache.do_write(false);
+
+            let mut _maybe_ir_interp_result: Option<RuntimeI64> = None;
 
             {
                 let mut ir_interpreter = IrInterpreter::new(intermediate_repr.clone(), &mut runtime_cache);
@@ -216,8 +284,26 @@ rlang ::= exp
                     }
                     continue 'repl_loop;
                 } else {
-                    println!("Result of interpreting the IR: {}\n", result.value.unwrap());
+                    _maybe_ir_interp_result = result.value;
                 }
+            }
+
+            // if we get here both maybe_ast_interp_result and maybe_ir_interp_result contains values
+            let ast_result = _maybe_ast_interp_result.unwrap();
+            let ir_result = _maybe_ir_interp_result.unwrap();
+            if ast_result != ir_result {
+                println!(
+                    "{}\n{}\n{}\n{}\n",
+                    "internal error",
+                    "expected ast and ir interpreters to return the same result, but it did not happen:",
+                    format!("    ast: {}", ast_result),
+                    format!("     ir: {}", ir_result),
+                );
+
+                continue 'repl_loop;
+            } else {
+                // doesn't matter which one
+                println!("> {}\n", ast_result);
             }
 
             let x64prog =
@@ -228,10 +314,10 @@ rlang ::= exp
                 println!("{:#?}", x64prog);
             }
 
+            self.buffer = "".to_owned();
+
         }
 
         Ok(())
     }
 }
-
-
