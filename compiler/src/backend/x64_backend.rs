@@ -16,7 +16,7 @@ use crate::ir::explicate;
 
 pub struct IRToX64Transformer {
     externals: RefCell<HashSet<IdString>>,
-    cprog: explicate::CProgram,
+    cprog: explicate::IRProgram,
     blocks: HashMap<IdString, x64_def::Block>,
     vars: Vec::<x64_def::Home>,
     rbp_offset: i64,
@@ -25,7 +25,6 @@ pub struct IRToX64Transformer {
     prologue_necessary: bool, // do we need a frame pointer ?
     memory_patch: x64_def::Reg, // we might need a register for the case when we end up with an operation taking to memory operands
     mp_used: bool, // flag for above value
-    runtime: bool, // should the runtime be included ? it will be by default
 }
 
 #[derive(Default, Clone, Debug)]
@@ -282,12 +281,6 @@ mod patch_instructions {
 
 impl IRToX64Transformer {
 
-    pub fn use_runtime(&mut self, include: bool) -> &mut Self {
-        self.runtime = include;
-
-        self
-    }
-
     fn next_rbp_offset(&mut self) -> i64 {
         // rbp_offset starts at 0, so need to decrement
         // the offset first, so that rbp isn't overwritten
@@ -296,7 +289,7 @@ impl IRToX64Transformer {
         self.rbp_offset
     }
 
-    pub fn new(cprog: explicate::CProgram) -> Self {
+    pub fn new(cprog: explicate::IRProgram) -> Self {
         IRToX64Transformer {
             externals: RefCell::new(crate::set!()),
             cprog: cprog,
@@ -308,7 +301,6 @@ impl IRToX64Transformer {
             prologue_necessary: false,
             memory_patch: x64_def::Reg::R15,
             mp_used: false,
-            runtime: true,
         }
     }
 

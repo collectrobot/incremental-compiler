@@ -25,7 +25,6 @@ fn x64_build_constant() {
                 decomplify_program(uniquify_program(ast))
             )
         )
-        .use_runtime(true)
         .transform();
 
     let asm_text = X64Printer::new(x64_asm).print();
@@ -48,7 +47,6 @@ fn x64_build_add_two_read() {
                 decomplify_program(uniquify_program(ast))
             )
         )
-        .use_runtime(true)
         .transform();
 
     let asm_text = X64Printer::new(x64_asm).print();

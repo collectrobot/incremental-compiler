@@ -5,6 +5,8 @@
 
 #![allow(dead_code)]
 
+use natord;
+
 use crate::frontend::ast::{AstNode, Program};
 use crate::types::{IdString};
 
@@ -16,7 +18,7 @@ Atm   ::= (Int int) | (Var var)
 Exp   ::= atm | (Prim read ()) |(Prim - (atm)) |(Prim + (atm atm))
 Stmt  ::= (Assign (Var var) exp)
 Tail  ::= (Return exp) | (Seq stmt tail)
-Clang ::= (CProgram info ((label . tail) ...))
+Clang ::= (IRProgram info ((label . tail) ...))
 
 info will be a list of local variables
 
@@ -46,7 +48,7 @@ pub enum Tail {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct CProgram {
+pub struct IRProgram {
     pub locals: Vec<IdString>, // local variables
     pub labels: HashMap<IdString, Tail>,
 }
@@ -274,7 +276,7 @@ impl Explicator {
     }
 }
 
-pub fn explicate_control(program: Program) -> CProgram {
+pub fn explicate_control(program: Program) -> IRProgram {
     let mut explicator = Explicator::new();
 
     let instructions = explicator.explicate_tail(program.exp);
@@ -282,9 +284,27 @@ pub fn explicate_control(program: Program) -> CProgram {
     let mut labels = HashMap::new();
     labels.insert(crate::idstr!("start"), instructions);
 
+    let mut locals = explicator.local_vars;
+
+    /*
+        this isn't absolutely required, but means that the locals will look like this:
+
+        [tmp.0, tmp.1]
+        
+        instead of:
+
+        [tmp.1, tmp.0]
+
+        for example
+    */
+    locals.sort_by(
+        |a, b|
+        natord::compare(&*a, &*b)
+    );
+
     // start is the entry point in clang
-    CProgram {
-        locals: explicator.local_vars,
+    IRProgram {
+        locals: locals,
         labels: labels,
     }
 }

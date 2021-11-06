@@ -1,22 +1,16 @@
 use std::collections::HashMap;
 
-use crate::frontend::lexer::{Lexer};
-use crate::frontend::parser::{Parser};
-use crate::frontend::uniquify::{uniquify_program};
-use crate::frontend::decomplify::{decomplify_program};
+use crate::utility::{test_ir_helper};
+
 use super::explicate::*;
+
+fn helper(prog: &'static str) -> IRProgram {
+    test_ir_helper(prog)
+}
 
 #[test]
 fn explicate_constant() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(123)")
-        .lex())
-    .parse(); 
-
-    let unq_decomplified = decomplify_program(uniquify_program(ast));
-
-    let ir = explicate_control(unq_decomplified);
+    let ir = helper("(123)");
 
     let mut labels = HashMap::new();
 
@@ -29,7 +23,7 @@ fn explicate_constant() {
         )
     );
 
-    let expected = CProgram {
+    let expected = IRProgram {
         locals: vec!(),
         labels: labels
     };
@@ -39,15 +33,7 @@ fn explicate_constant() {
 
 #[test]
 fn explicate_add_constants() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(+ 2 2)")
-        .lex())
-    .parse(); 
-
-    let unq_decomplified = decomplify_program(uniquify_program(ast));
-
-    let ir = explicate_control(unq_decomplified);
+    let ir = helper("(+ 2 2)");
 
     let mut labels = HashMap::new();
 
@@ -60,7 +46,7 @@ fn explicate_add_constants() {
         )
     );
 
-    let expected = CProgram {
+    let expected = IRProgram {
         locals: vec!(),
         labels: labels
     };
@@ -69,40 +55,22 @@ fn explicate_add_constants() {
 }
 
 #[test]
-fn explicate_let() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(let ([x 10]) x)")
-        .lex())
-    .parse(); 
-
-    let unq_decomplified = decomplify_program(uniquify_program(ast));
-
-    let ir = explicate_control(unq_decomplified);
+fn explicate_let_constant() {
+    let ir = helper("(let ([x 10]) x)");
 
     let mut labels = HashMap::new();
 
-    let x_var = crate::idstr!("x.1");
-
     labels.insert(
         crate::idstr!("start"),
-        Tail::Seq(
-            Stmt::Assign(
-                Atm::Var { name: x_var.clone() },
-                Exp::Atm(Atm::Int(10))
-            ),
-            Box::new(
-                Tail::Return(
-                    Exp::Atm(
-                        Atm::Var { name: x_var.clone() }
-                    )
-                )
+        Tail::Return (
+            Exp::Atm(
+                Atm::Int(10)
             )
         )
     );
 
-    let expected = CProgram {
-        locals: vec!(x_var.clone()),
+    let expected = IRProgram {
+        locals: vec!(),
         labels: labels
     };
 
@@ -110,40 +78,56 @@ fn explicate_let() {
 }
 
 #[test]
-fn explicate_let_nested() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(let ([x (let ([y 42]) y)]) x)")
-        .lex())
-    .parse(); 
-
-    let unq_decomplified = decomplify_program(uniquify_program(ast));
-
-    let ir = explicate_control(unq_decomplified);
+fn explicate_let_nested_const() {
+    let ir = helper("(let ([x (let ([y 42]) y)]) x)");
 
     let mut labels = HashMap::new();
 
-    let x_var = crate::idstr!("x.1");
-    let y_var = crate::idstr!("y.2");
+    labels.insert(
+        crate::idstr!("start"),
+        Tail::Return(
+            Exp::Atm(
+                Atm::Int(42)
+            )
+        )
+    );
+
+    let expected = IRProgram {
+        locals: vec!(),
+        labels: labels
+    };
+
+    assert_eq!(ir, expected);
+}
+
+#[test]
+fn explicate_add_read() {
+    let ir = helper("(+ (read) (read))");
+
+    let mut labels = HashMap::new();
+
+    let tmp = crate::idstr!("tmp.0");
+    let tmp1 = crate::idstr!("tmp.1");
 
     labels.insert(
         crate::idstr!("start"),
         Tail::Seq(
             Stmt::Assign(
-                Atm::Var { name: y_var.clone() },
-                Exp::Atm(Atm::Int(42))
+                Atm::Var { name: tmp.clone() },
+                Exp::Prim { op: crate::idstr!("read"), args: vec!() },
             ),
             Box::new(
                 Tail::Seq(
                     Stmt::Assign(
-                        Atm::Var { name: x_var.clone() },
-                        Exp::Atm(Atm::Var { name: y_var.clone() })
+                        Atm::Var { name: tmp1.clone() },
+                        Exp::Prim { op: crate::idstr!("read"), args: vec!() },
                     ),
                     Box::new(
                         Tail::Return(
-                            Exp::Atm(
-                                Atm::Var { name: x_var.clone() }
-                            )
+                            Exp::Prim {
+                                op: crate::idstr!("+"),
+                                args: vec!(Atm::Var {name: tmp.clone()}, Atm::Var {name: tmp1.clone()}),
+                            }
                         )
                     )
                 ),
@@ -151,8 +135,8 @@ fn explicate_let_nested() {
         )
     );
 
-    let expected = CProgram {
-        locals: vec!(x_var, y_var),
+    let expected = IRProgram {
+        locals: vec!(tmp.clone(), tmp1.clone()),
         labels: labels
     };
 

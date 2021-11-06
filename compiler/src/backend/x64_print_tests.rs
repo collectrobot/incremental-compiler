@@ -4,34 +4,19 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::frontend::lexer::{Lexer};
-use crate::frontend::parser::{Parser};
-use crate::frontend::uniquify::{uniquify_program};
-use crate::frontend::decomplify::{decomplify_program};
-use crate::ir::explicate::{explicate_control};
+use crate::utility::{test_x64_helper};
 
 use super::x64_def::*;
 use super::x64_backend::{IRToX64Transformer};
 use super::x64_print::{X64Printer};
 
+fn helper(prog: &'static str) -> String {
+    X64Printer::new(test_x64_helper(prog)).print()
+}
+
 #[test]
 fn x64_print_constant() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(2)")
-        .lex())
-    .parse(); 
-
-    let x64_asm =
-        IRToX64Transformer::new(
-            explicate_control(
-                decomplify_program(uniquify_program(ast))
-            )
-        )
-        .use_runtime(false)
-        .transform();
-
-    let asm_text = X64Printer::new(x64_asm).print();
+    let asm_text = helper("(2)"); 
 
     let expect_print =
 "global start
@@ -49,22 +34,7 @@ start:
 
 #[test]
 fn x64_print_addition() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(+ 2 2)")
-        .lex())
-    .parse(); 
-
-    let x64_asm =
-        IRToX64Transformer::new(
-            explicate_control(
-                decomplify_program(uniquify_program(ast))
-            )
-        )
-        .use_runtime(false)
-        .transform();
-
-    let asm_text = X64Printer::new(x64_asm).print();
+    let asm_text = helper("(+ 2 2)");
 
     let expect_print =
 "global start
@@ -82,22 +52,7 @@ start:
 
 #[test]
 fn x64_print_negate_then_add() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(+ (- 10) 42)")
-        .lex())
-    .parse(); 
-
-    let x64_asm =
-        IRToX64Transformer::new(
-            explicate_control(
-                decomplify_program(uniquify_program(ast))
-            )
-        )
-        .use_runtime(false)
-        .transform();
-
-    let asm_text = X64Printer::new(x64_asm).print();
+    let asm_text = helper("(+ (- 10) 42)");
 
     let expect_print =
 "global start
@@ -105,15 +60,7 @@ fn x64_print_negate_then_add() {
 section .text
 
 start:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 8
-    mov qword [rbp-8], 10
-    neg qword [rbp-8]
-    mov rax, qword [rbp-8]
-    add rax, 42
-    mov rsp, rbp
-    pop rbp
+    mov rax, 32
     ret
 ".to_owned();
 
@@ -123,22 +70,7 @@ start:
 
 #[test]
 fn x64_print_add_two_read() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(+ (read) (read))")
-        .lex())
-    .parse(); 
-
-    let x64_asm =
-        IRToX64Transformer::new(
-            explicate_control(
-                decomplify_program(uniquify_program(ast))
-            )
-        )
-        .use_runtime(true)
-        .transform();
-
-    let asm_text = X64Printer::new(x64_asm).print();
+    let asm_text = helper("(+ (read) (read))");
 
     let expect_print =
 "extern read_int
@@ -154,7 +86,9 @@ start:
     call read_int
     mov qword [rbp-8], rax
     call read_int
-    add rax, qword [rbp-8]
+    mov qword [rbp-16], rax
+    mov rax, qword [rbp-8]
+    add rax, qword [rbp-16]
     mov rsp, rbp
     pop rbp
     ret
@@ -162,4 +96,31 @@ start:
 
     assert_eq!(asm_text, expect_print);
 
+}
+
+#[test]
+fn x64_print_let_add() {
+    let asm_text = helper("(let ([x (read)]) (+ x x)");
+
+    let expect_print =
+"extern read_int
+
+global start
+
+section .text
+
+start:
+    push rbp
+    mov rbp, rsp
+    sub rsp, 8
+    call read_int
+    mov qword [rbp-8], rax
+    mov rax, qword [rbp-8]
+    add rax, qword [rbp-8]
+    mov rsp, rbp
+    pop rbp
+    ret
+".to_owned();
+
+    assert_eq!(asm_text, expect_print);
 }

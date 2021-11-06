@@ -1,19 +1,22 @@
 use crate::frontend::ast::{AstNode, Program, LetBinding};
-use crate::frontend::lexer::{Lexer};
-use crate::frontend::parser::{Parser};
-use super::{decomplify_program};
+use crate::utility::{test_ast_helper, AstStep};
+
+
+fn helper(prog: &'static str) -> Program {
+    test_ast_helper(
+        prog,
+        vec!(AstStep::Uniquify, AstStep::PartialEvaluation, AstStep::Decomplify)
+    )
+}
 
 #[test]
 fn decomplify_addition() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(+ 2 (+ 2 2))")
-        .lex())
-    .parse(); 
-
-    let decomplified = decomplify_program(ast);
+    let decomplified = helper("(+ x (+ x y))");
 
     let tmp = crate::idstr!("tmp.0");
+
+    let x = crate::idstr!("x");
+    let y = crate::idstr!("y");
 
     let expected = Program {
         info: (),
@@ -24,8 +27,8 @@ fn decomplify_addition() {
                     expr: AstNode::Prim {
                         op: crate::idstr!("+"),
                         args: vec!(
-                            AstNode::Int(2),
-                            AstNode::Int(2)
+                            AstNode::Var { name: x.clone() },
+                            AstNode::Var { name: y.clone() },
                         )
                     }
                 }
@@ -34,7 +37,7 @@ fn decomplify_addition() {
             body: Box::new(AstNode::Prim {
                 op: crate::idstr!("+"),
                 args: vec!(
-                    AstNode::Int(2),
+                    AstNode::Var { name: x.clone() },
                     AstNode::Var { name: tmp }
                 )
             })
@@ -46,16 +49,10 @@ fn decomplify_addition() {
 
 #[test]
 fn decomplify_let_read() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(let ([x 42]) (+ x (read)))")
-        .lex())
-    .parse(); 
-
-    let decomplified = decomplify_program(ast);
+    let decomplified = helper("(let ([x 42]) (+ x (read)))");
 
     let tmp = crate::idstr!("tmp.0");
-    let x_var = crate::idstr!("x");
+    let x_var = crate::idstr!("x.1");
 
     let expected = Program {
         info: (),

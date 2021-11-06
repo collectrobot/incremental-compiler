@@ -2,31 +2,14 @@
 #![allow(unused_imports)]
 
 use crate::frontend::ast::{AstNode, Program};
-use crate::frontend::lexer::{Lexer};
-use crate::frontend::parser::{Parser};
 
-use crate::frontend::uniquify::{uniquify_program};
-use crate::frontend::decomplify::{decomplify_program};
-
-use super::{partially_evaluate};
+use crate::utility::{test_ast_helper, AstStep};
 
 fn helper(prog: &'static str) -> Program {
-    partially_evaluate(
-        uniquify_program(
-            Parser::new(
-                Lexer::new(prog)
-                .lex())
-            .parse()
-        )   
+    test_ast_helper(
+        prog,
+        vec!(AstStep::Uniquify, AstStep::PartialEvaluation)
     )
-}
-
-fn contains_only(ast: &AstNode, should_contain: &AstNode) -> bool {
-    if ast == should_contain {
-        true
-    } else {
-        false
-    }
 }
 
 #[test]

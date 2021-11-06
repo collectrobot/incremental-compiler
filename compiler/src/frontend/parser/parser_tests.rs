@@ -1,14 +1,17 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use crate::frontend::ast::{AstNode, Program, LetBinding};
-use crate::frontend::parser::{Parser};
-use crate::frontend::lexer::{Lexer};
+
+use crate::utility::{test_ast_helper};
+
+pub fn helper(prog: &'static str) -> Program {
+    test_ast_helper(prog, vec!())
+}
 
 #[test]
 fn parse_constant() {
-    let mut parser = Parser::new(
-        Lexer::new("(2)").lex()
-    );
-
-    let ast = parser.parse();
+    let ast = helper("(2)");
 
     let expected = Program {
         info: (),
@@ -20,11 +23,7 @@ fn parse_constant() {
 
 #[test]
 fn parse_add_with_negate() {
-    let mut parser = Parser::new(
-        Lexer::new("(+ 2 (-1))").lex()
-    );
-
-    let ast = parser.parse();
+    let ast = helper("(+ 2 (-1))");
 
     let expected = Program {
         info: (),
@@ -45,11 +44,7 @@ fn parse_add_with_negate() {
 
 #[test]
 fn parse_let() {
-    let mut parser = Parser::new(
-        Lexer::new("(let ([x 10]) x)").lex()
-    );
-
-    let ast = parser.parse();
+    let ast = helper("(let ([x 10]) x)");
 
     let expected = Program {
         info: (),
@@ -71,11 +66,7 @@ fn parse_let() {
 
 #[test]
 fn parse_nested_let() {
-    let mut parser = Parser::new(
-        Lexer::new("(let ([x (let ([y 42]) y)]) x)").lex()
-    );
-
-    let ast = parser.parse();
+    let ast = helper("(let ([x (let ([y 42]) y)]) x)");
 
     let var_x = crate::idstr!("x");
     let var_y = crate::idstr!("y");
@@ -108,11 +99,7 @@ fn parse_nested_let() {
 
 #[test]
 fn parse_fail_expect_leftparen () {
-    let mut parser = Parser::new(
-        Lexer::new("2").lex()
-    );
-
-    let ast = parser.parse();
+    let ast = helper("2");
 
     match ast.exp {
         AstNode::Error { msg, .. } => {
@@ -128,11 +115,7 @@ fn parse_fail_expect_leftparen () {
 
 #[test]
 fn parse_fail_expect_rightbracket () {
-    let mut parser = Parser::new(
-        Lexer::new("(let ([x 10) x)").lex()
-    );
-
-    let ast = parser.parse();
+    let ast = helper("(let ([x 10) x)");
 
     match ast.exp {
         AstNode::Error { msg, .. } => {

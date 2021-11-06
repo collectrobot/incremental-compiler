@@ -1,17 +1,17 @@
 use crate::frontend::ast::{AstNode, Program, LetBinding};
-use crate::frontend::lexer::{Lexer};
-use crate::frontend::parser::{Parser};
-use super::{uniquify_program};
+
+use crate::utility::{test_ast_helper, AstStep};
+
+fn helper(prog: &'static str) -> Program {
+    test_ast_helper(
+        prog,
+        vec!(AstStep::Uniquify)
+    )
+}
 
 #[test]
 fn uniquify_let() {
-    let ast = 
-        Parser::new(
-            Lexer::new("(let ([x 42]) x)")
-            .lex())
-        .parse();
-
-    let unique_program = uniquify_program(ast);
+    let unique_program = helper("(let ([x 42]) x)");
 
     let x_var_unq = crate::idstr!("x.1");
 
@@ -34,13 +34,7 @@ fn uniquify_let() {
 
 #[test]
 fn uniquify_let_addition() {
-    let ast = 
-        Parser::new(
-            Lexer::new("(let ([x 42][y 10]) (+ x y))")
-            .lex())
-        .parse();
-
-    let unique_program = uniquify_program(ast);
+    let unique_program = helper("(let ([x 42][y 10]) (+ x y))");
 
     let x_var_unq = crate::idstr!("x.1");
     let y_var_unq = crate::idstr!("y.1");
@@ -76,13 +70,7 @@ fn uniquify_let_addition() {
 
 #[test]
 fn uniquify_nested_let() {
-    let ast = 
-        Parser::new(
-            Lexer::new("(let ([x (let ([y 42]) y)]) x)")
-            .lex())
-        .parse();
-
-    let unique_program = uniquify_program(ast);
+    let unique_program = helper("(let ([x (let ([y 42]) y)]) x)");
 
     let x_var_unq = crate::idstr!("x.1");
     let y_var_unq = crate::idstr!("y.2");
@@ -116,13 +104,7 @@ fn uniquify_nested_let() {
 
 #[test]
 fn uniquify_nested_let_shadowing() {
-    let ast = 
-        Parser::new(
-            Lexer::new("(let ([x 10]) (let ([x (+ x 1)]) x))")
-            .lex())
-        .parse();
-
-    let unique_program = uniquify_program(ast);
+    let unique_program = helper("(let ([x 10]) (let ([x (+ x 1)]) x))");
 
     let x1_var = crate::idstr!("x.1");
     let x2_var = crate::idstr!("x.2");

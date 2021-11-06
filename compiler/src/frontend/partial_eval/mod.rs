@@ -16,14 +16,14 @@ struct PartialEvaluator {
 
 impl PartialEvaluator {
 
-    pub fn new(prog: Program) -> Self {
+    fn new(prog: Program) -> Self {
         PartialEvaluator {
             prog: prog,
             env: Environment::new(), 
         }
     }
 
-    pub fn evaluate(&mut self) -> AstNode {
+    fn evaluate(&mut self) -> AstNode {
 
         let p = &self.prog.exp.clone();
         let result = self.partial_eval_exp(p);

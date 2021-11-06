@@ -6,7 +6,7 @@ use runtime::types::{RuntimeI64};
 use std::collections::HashMap;
 
 use crate::io::{get_line};
-use crate::ir::explicate::{CProgram, Tail, Stmt, Exp, Atm};
+use crate::ir::explicate::{IRProgram, Tail, Stmt, Exp, Atm};
 
 use crate::types::{IdString};
 use crate::interpreter::{Interpretable, InterpretResult, RuntimeValue, CachedRuntimeCall};
@@ -14,7 +14,7 @@ use crate::interpreter::{Interpretable, InterpretResult, RuntimeValue, CachedRun
 pub struct IrInterpreter<'a> {
     interpretation_error: bool,
     errors: Vec<String>,
-    cprog: CProgram,
+    cprog: IRProgram,
     vars: HashMap<IdString, Atm>,
     crc: &'a mut CachedRuntimeCall,
 }
@@ -331,7 +331,7 @@ impl<'a> IrInterpreter<'a> {
         }
     }
 
-    pub fn new(cprog: CProgram, crc: &mut CachedRuntimeCall) -> IrInterpreter {
+    pub fn new(cprog: IRProgram, crc: &mut CachedRuntimeCall) -> IrInterpreter {
         IrInterpreter {
             cprog: cprog,
             interpretation_error: false,

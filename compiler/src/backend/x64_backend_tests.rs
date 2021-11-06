@@ -21,7 +21,6 @@ fn x64_ret_constant() {
                 decomplify_program(uniquify_program(ast))
             )
         )
-        .use_runtime(false)
         .transform();
 
     let start_label = crate::idstr!("start");
@@ -58,7 +57,6 @@ fn x64_add_negate() {
                 decomplify_program(uniquify_program(ast))
             )
         )
-        .use_runtime(false)
         .transform();
 
     let temp_var = crate::idstr!("tmp.0");
@@ -113,7 +111,6 @@ fn x64_patch_instruction() {
                 decomplify_program(uniquify_program(ast))
             )
         )
-        .use_runtime(false)
         .transform();
 
     let x_var = crate::idstr!("x.1");
