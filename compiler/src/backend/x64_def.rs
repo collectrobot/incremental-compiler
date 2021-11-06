@@ -5,7 +5,6 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::rc::Rc;
 
 use crate::types::{IdString};
 
@@ -19,7 +18,7 @@ pub enum Reg {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Arg {
-    Var(Rc<String>), // for the first pass where variables are still present
+    Var(IdString), // for the first pass where variables are still present
     Imm(i64),
     Reg(Reg),
     Deref(Reg, i64),

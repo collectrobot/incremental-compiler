@@ -98,8 +98,12 @@ mod select_instruction {
                                     let latm = self.handle_atom(&args[0], blk_data);
                                     let ratm = self.handle_atom(&args[1], blk_data);
 
-                                    blk_data.instr.push(Instr::Mov64(assignee.clone(), latm));
-                                    blk_data.instr.push(Instr::Add64(assignee, ratm));
+                                    if latm == ratm {
+                                        blk_data.instr.push(Instr::Add64(assignee, ratm));
+                                    } else {
+                                        blk_data.instr.push(Instr::Mov64(assignee.clone(), latm));
+                                        blk_data.instr.push(Instr::Add64(assignee, ratm));
+                                    }
                                 },
 
                                 _ => {
@@ -148,8 +152,12 @@ mod select_instruction {
                                     let latm = self.handle_atom(&args[0], blk_data);
                                     let ratm = self.handle_atom(&args[1], blk_data);
 
-                                    blk_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
-                                    blk_data.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
+                                    if latm == ratm {
+                                        blk_data.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
+                                    } else {
+                                        blk_data.instr.push(Instr::Mov64(Arg::Reg(Reg::Rax), latm));
+                                        blk_data.instr.push(Instr::Add64(Arg::Reg(Reg::Rax), ratm));
+                                    }
                                 },
 
                                 _ => {
