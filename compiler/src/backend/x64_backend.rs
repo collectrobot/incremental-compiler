@@ -18,10 +18,9 @@ pub struct IRToX64Transformer {
     externals: RefCell<HashSet<IdString>>,
     cprog: explicate::IRProgram,
     blocks: HashMap<IdString, x64_def::Block>,
+    liveness_set: HashMap<IdString, Vec<IdString>>,
     vars: Vec::<x64_def::Home>,
     rbp_offset: i64,
-    prologue_tag: Rc::<String>,
-    epilogue_tag: Rc::<String>,
     prologue_necessary: bool, // do we need a frame pointer ?
     memory_patch: x64_def::Reg, // we might need a register for the case when we end up with an operation taking to memory operands
     mp_used: bool, // flag for above value
@@ -184,6 +183,8 @@ mod assign_homes {
     impl IRToX64Transformer {
         pub fn assign_homes(&mut self) {
 
+            let liveness_set = self.build_liveness_set(&)
+
             let mut the_vars = self.vars.clone();
 
             // sort variables in natural order so we end up with a deterministic
@@ -302,10 +303,9 @@ impl IRToX64Transformer {
             externals: RefCell::new(crate::set!()),
             cprog: cprog,
             blocks: HashMap::new(),
+            liveness_set: HashMap::new(),
             vars: Vec::new(),
             rbp_offset: 0,
-            prologue_tag: crate::idstr!("prologue"),
-            epilogue_tag: crate::idstr!("epilogue"),
             prologue_necessary: false,
             memory_patch: x64_def::Reg::R15,
             mp_used: false,

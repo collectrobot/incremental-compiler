@@ -6,25 +6,34 @@ use runtime::types::{RuntimeI64};
 use crate::frontend::ast::{Program, AstNode};
 use crate::io::{get_line};
 use crate::types::{Environment};
-use crate::interpreter::{Interpretable, InterpretResult, RuntimeValue, CachedRuntimeCall};
+use crate::interpreter::{Interpretable, InterpretResult, RuntimeValue};
 
 // AstInterpreter -> exp ::= int | (read) | (- exp) | (+ exp exp)
 //               | var | (let ([var exp]) exp)
-pub struct AstInterpreter<'a> {
+pub struct AstInterpreter {
     program: Program,
     interpretation_error: bool,
     errors: Vec<String>,
-    crc: &'a mut CachedRuntimeCall,
 }
 
-impl<'a> AstInterpreter<'a> {
-
-    pub fn new(p: Program, crc: &mut CachedRuntimeCall) -> AstInterpreter {
+impl AstInterpreter<> {
+    pub fn new(p: Program) -> AstInterpreter {
         AstInterpreter {
             program: p,
             interpretation_error: false,
             errors: vec!(),
-            crc: crc,
+        }
+    }
+
+    pub fn run(&mut self) -> Option<RuntimeI64> {
+        let mut envir = Environment::new();
+
+        let start = self.program.functions.get(&crate::idstr!("start"));
+
+        if let Some(func) = start {
+            self.interp_exp(&mut envir, &func.exp)
+        } else {
+            self.add_error("entry point could not be found, expected 'start'".to_owned())
         }
     }
 
@@ -83,29 +92,15 @@ impl<'a> AstInterpreter<'a> {
 
                         let fn_name = crate::idstr!("read");
 
-                        if !self.crc.write {
+                        let input = get_line();
 
-                            let runtime_val = self.crc.get_cached_result_of(fn_name);
+                        match input.parse::<RuntimeI64>() {
+                            Ok(n) => {
+                                return Some(n);
+                            },
 
-                            match runtime_val {
-                                RuntimeValue::RuntimeI64(n) => {
-                                    return Some(n);
-                                },
-                            }
-                        } else {
-                            let input = get_line();
-
-                            match input.parse::<RuntimeI64>() {
-                                Ok(n) => {
-
-                                    self.crc.set_cached_result_of(fn_name, RuntimeValue::RuntimeI64(n));
-
-                                    return Some(n);
-                                },
-
-                                Err(error) => {
-                                    return self.add_error(format!("{}", error));
-                                }
+                            Err(error) => {
+                                return self.add_error(format!("{}", error));
                             }
                         }
                     },
@@ -155,11 +150,9 @@ impl<'a> AstInterpreter<'a> {
     }
 }
 
-impl<'a> Interpretable for AstInterpreter<'a> {
+impl Interpretable for AstInterpreter {
     fn interpret(&mut self) -> InterpretResult {
-        let mut envir = Environment::new();
-
-        let value = self.interp_exp(&mut envir, &self.program.exp.clone());
+        let value = self.run();
 
         InterpretResult {
             value: value,

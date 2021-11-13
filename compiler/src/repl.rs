@@ -11,10 +11,7 @@ use crate::ir::explicate::{explicate_control};
 use crate::backend::x64_backend::{IRToX64Transformer};
 use crate::interpreter::{
     Interpreter, 
-    CachedRuntimeCall,
-    CachedFunctionResult,
     interp_ast::AstInterpreter,
-    interp_ir::IrInterpreter,
 };
 
 use crate::io::{get_line};
@@ -240,25 +237,17 @@ program ::= (exp)
                 println!("{:#?}", decomplified_program);
             }
 
-            let mut runtime_cache = CachedRuntimeCall::new();
+            let mut ast_interpreter = AstInterpreter::new(decomplified_program.clone());
 
-            let mut _maybe_ast_interp_result: Option<RuntimeI64> = None;
+            let mut interpreter = Interpreter::new(&mut ast_interpreter);
 
-            {
-                let mut ast_interpreter = AstInterpreter::new(decomplified_program.clone(), &mut runtime_cache);
+            let result = interpreter.run();
 
-                let mut interpreter = Interpreter::new(&mut ast_interpreter);
-
-                let result = interpreter.run();
-
-                if result.had_error {
-                    for error in result.errors {
-                        println!("{}", error);
-                    }
-                    continue 'repl_loop;
-                } else {
-                    _maybe_ast_interp_result = result.value;
+            if result.had_error {
+                for error in result.errors {
+                    println!("{}", error);
                 }
+                continue 'repl_loop;
             }
 
             let intermediate_repr = explicate_control(decomplified_program);
@@ -268,43 +257,8 @@ program ::= (exp)
                 println!("{:#?}", intermediate_repr);
             }
 
-            runtime_cache.do_write(false);
-
-            let mut _maybe_ir_interp_result: Option<RuntimeI64> = None;
-
-            {
-                let mut ir_interpreter = IrInterpreter::new(intermediate_repr.clone(), &mut runtime_cache);
-                let mut interpreter = Interpreter::new(&mut ir_interpreter);
-
-                let result = interpreter.run();
-
-                if result.had_error {
-                    for error in result.errors {
-                        println!("{}", error);
-                    }
-                    continue 'repl_loop;
-                } else {
-                    _maybe_ir_interp_result = result.value;
-                }
-            }
-
-            // if we get here both maybe_ast_interp_result and maybe_ir_interp_result contains values
-            let ast_result = _maybe_ast_interp_result.unwrap();
-            let ir_result = _maybe_ir_interp_result.unwrap();
-            if ast_result != ir_result {
-                println!(
-                    "{}\n{}\n{}\n{}\n",
-                    "internal error",
-                    "expected ast and ir interpreters to return the same result, but it did not happen:",
-                    format!("    ast: {}", ast_result),
-                    format!("     ir: {}", ir_result),
-                );
-
-                continue 'repl_loop;
-            } else {
-                // doesn't matter which one
-                println!("> {}\n", ast_result);
-            }
+            // doesn't matter which one
+            println!("> {}\n", result.value.unwrap());
 
             let x64prog =
                 IRToX64Transformer::new(intermediate_repr)

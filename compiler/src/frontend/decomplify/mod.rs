@@ -14,7 +14,7 @@ mod decomplify_tests;
 
 use crate::types::{IdString};
 
-use super::ast::{AstNode, LetBinding, Program};
+use super::ast::{AstNode, LetBinding, Program, Function};
 
 struct Rco {
     num: i64,
@@ -304,8 +304,8 @@ impl Rco {
         }
     }
 
-    pub fn decomplify(&mut self, p: Program) -> AstNode {
-        self.rco_expr(p.exp)
+    pub fn decomplify(&mut self, expr: AstNode) -> AstNode {
+        self.rco_expr(expr)
     }
 }
 
@@ -316,6 +316,16 @@ pub fn decomplify_program(program: Program) -> Program {
 
     Program {
         info: (),
-        exp: rco.decomplify(program),
+        functions:
+            program.functions
+            .iter()
+            .map(|(key, value)| {
+                return (
+                    key.clone(),
+                    Function {
+                        exp: rco.decomplify(value.exp)
+                    }
+                )
+            }).collect()
     }
 }

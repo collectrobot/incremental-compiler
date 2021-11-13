@@ -48,9 +48,15 @@ pub enum Tail {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct IRProgram {
-    pub locals: Vec<IdString>, // local variables
+pub struct IRFunction {
+    pub name: IdString,
+    pub locals: Vec<IdString>, // function variables
     pub labels: HashMap<IdString, Tail>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct IRProgram {
+    pub functions: HashMap<IdString, IRFunction>,
 }
 
 struct Explicator {

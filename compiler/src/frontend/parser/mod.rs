@@ -6,7 +6,7 @@ mod parser_tests;
 use std::rc::Rc;
 
 use super::token::{Token, TokenType};
-use super::ast::{AstNode, LetBinding, Program};
+use super::ast::{AstNode, LetBinding, Program, Function};
 
 //use std::collections::HashMap;
 
@@ -289,9 +289,12 @@ impl Parser {
     }
 
     fn parse_program(&mut self) -> Program {
-        Program {
-            info: (),
-            exp: {
+
+        // TODO: move this into the repl in some way
+        // repl will probably wrap this in a function definition later
+
+        let func = Function {
+            exp: 
                 if !self.is(TokenType::Lparen) {
                     self.make_error_node(
                         format!("Expected '(', found '{}'", self.current().lexeme),
@@ -314,7 +317,11 @@ impl Parser {
 
                     node
                 }
-            }
+        };
+
+        Program {
+            info: (),
+            functions: crate::map!(crate::idstr!("start") => func)
         }
     }
 

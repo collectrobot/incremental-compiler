@@ -9,7 +9,7 @@ mod uniquify_tests;
 use std::collections::HashMap;
 use crate::types::{IdString};
 
-use super::ast::{AstNode, LetBinding, Program};
+use super::ast::{AstNode, LetBinding, Program, Function};
 
 fn uniquify_exp(environments: &mut Vec<HashMap<IdString, IdString>>, e: AstNode) -> AstNode {
     match e {
@@ -91,12 +91,20 @@ fn uniquify_exp(environments: &mut Vec<HashMap<IdString, IdString>>, e: AstNode)
 }
 
 pub fn uniquify_program(p: Program) -> Program {
-
-    let env =
-        &mut Vec::<HashMap<IdString, IdString>>::new();
-
     Program {
         info: p.info,
-        exp: uniquify_exp(env, p.exp),
+        functions: 
+            p.functions
+            .iter()
+            .map(|(key, value)| {
+                return (
+                    key.clone(),
+                    Function {
+                        exp: uniquify_exp(
+                            &mut Vec::<HashMap<IdString, IdString>>::new(),
+                            value.exp) 
+                    }
+                )
+            }).collect(),
     }
 }

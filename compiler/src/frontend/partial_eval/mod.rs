@@ -23,13 +23,17 @@ impl PartialEvaluator {
         }
     }
 
-    fn evaluate(&mut self) -> AstNode {
+    fn evaluate(&mut self) -> Program {
 
-        let p = &self.prog.exp.clone();
-        let result = self.partial_eval_exp(p);
-
-        result
-
+        Program {
+            info: (),
+            functions: 
+                self.prog.functions
+                .iter()
+                .map(| (key, value) | {
+                    return (key.clone(), Function { exp: self.partial_eval_exp(&value.exp)} )
+                }).collect()
+        }
     }
 
     fn partial_eval_negate(&mut self, r: &AstNode) -> AstNode {
@@ -195,10 +199,5 @@ impl PartialEvaluator {
 
 pub fn partially_evaluate(prog: Program) -> Program {
     let mut pe = PartialEvaluator::new(prog);
-    let result = pe.evaluate();
-
-    Program {
-        info: (),
-        exp: result
-    }
+    pe.evaluate()
 }

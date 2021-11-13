@@ -23,7 +23,7 @@ fn x64_ret_constant() {
         )
         .transform();
 
-    let start_label = crate::idstr!("start");
+    //let start_label = crate::idstr!("start");
 
     let block = 
         Block {
@@ -36,7 +36,7 @@ fn x64_ret_constant() {
 
     let expected = X64Program {
         external: crate::set!(),
-        vars: vec!(),
+        //vars: vec!(),
         blocks: crate::map!(start_label => block)
     };
 
@@ -80,11 +80,11 @@ fn x64_add_negate() {
             )
         };
 
-    let vars = x64_asm.vars.clone();
+    //let vars = x64_asm.vars.clone();
 
     let expected = X64Program {
         external: crate::set!(),
-        vars: vars,
+        //vars: vars,
         blocks: crate::map!(start_label => block)
     };
 
@@ -137,11 +137,11 @@ fn x64_patch_instruction() {
             )
         };
 
-    let vars = x64_asm.vars.clone();
+    //let vars = x64_asm.vars.clone();
 
     let expected = X64Program {
         external: crate::set!(),
-        vars: vars,
+        //vars: vars,
         blocks: crate::map!(start_label => block)
     };
 

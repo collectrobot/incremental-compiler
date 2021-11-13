@@ -1,3 +1,5 @@
+use std::collections::{HashMap};
+
 use runtime::types::{RuntimeI64};
 
 use crate::types::{IdString};
@@ -24,7 +26,12 @@ pub enum AstNode {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct Function {
+    pub exp: AstNode,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Program {
     pub info: (),
-    pub exp: AstNode,
+    pub functions: HashMap<IdString, Function>,
 }
