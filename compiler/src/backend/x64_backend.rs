@@ -9,40 +9,41 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use super::x64_def;
-
 use crate::types::{IdString};
 use crate::ir::explicate;
 
-pub struct IRToX64Transformer {
+use super::x64_def;
+
+pub struct IRToX64Transformer<'a> {
     externals: RefCell<HashSet<IdString>>,
-    cprog: explicate::IRProgram,
+    cfunc: &'a explicate::IRFunction,
     blocks: HashMap<IdString, x64_def::Block>,
-    liveness_set: HashMap<IdString, Vec<IdString>>,
-    vars: Vec::<x64_def::Home>,
+    liveness_set: Vec<IdString>,
+    vars: HashSet::<x64_def::Home>,
     rbp_offset: i64,
     prologue_necessary: bool, // do we need a frame pointer ?
     memory_patch: x64_def::Reg, // we might need a register for the case when we end up with an operation taking to memory operands
     mp_used: bool, // flag for above value
 }
 
+/*
 #[derive(Default, Clone, Debug)]
 pub struct BlockData {
     vars: HashSet<x64_def::Home>,
     instr: Vec<x64_def::Instr>,
 }
+*/
 
 // map the ir code to x64 instructions 
 mod select_instruction {
 
     use super::x64_def::*;
-    use super::BlockData;
     use super::IRToX64Transformer;
     use super::explicate::{Atm, Stmt, Tail, Exp};
 
-    impl IRToX64Transformer {
+    impl<'a> IRToX64Transformer<'a> {
 
-        fn handle_atom(&self, atm: &Atm, blk_data: &mut BlockData) -> Arg {
+        fn handle_atom(&self, atm: &Atm, blk_data: &mut Block) -> Arg {
 
             match atm {
                 Atm::Int(n) => {
@@ -50,7 +51,7 @@ mod select_instruction {
                 },
 
                 Atm::Var { name } => {
-                    blk_data.vars.insert(
+                    self.vars.insert(
                         Home {
                             name: name.clone(),
                             loc: VarLoc::Undefined,
@@ -62,7 +63,7 @@ mod select_instruction {
             }
         }
 
-        fn handle_stmt(&self, stmt: &Stmt, blk_data: &mut BlockData) {
+        fn handle_stmt(&self, stmt: &Stmt, blk_data: &mut Block) {
             match stmt {
                 Stmt::Assign(atm, expr) => {
                     let assignee = self.handle_atom(atm, blk_data);
@@ -115,7 +116,7 @@ mod select_instruction {
             }
         }
 
-        pub fn select_instruction(&self, tail: &Tail, blk_data: &mut BlockData) {
+        pub fn select_instruction(&self, tail: &Tail, blk_data: &mut Block) {
 
             match tail {
                 Tail::Seq(stmt, tail) => {
@@ -177,10 +178,10 @@ mod assign_homes {
 
     use std::collections::HashSet;
 
-    use super::x64_def::*;
+    use super::x64_def::{*};
     use super::IRToX64Transformer;
 
-    impl IRToX64Transformer {
+    impl<'a> IRToX64Transformer<'a> {
         pub fn assign_homes(&mut self) {
 
             let liveness_set = self.build_liveness_set(&)
@@ -272,7 +273,7 @@ mod patch_instructions {
         (patched, patched_instructions)
     }
 
-    impl IRToX64Transformer {
+    impl<'a> IRToX64Transformer<'a> {
         pub fn patch_instructions(&mut self) {
             for block in &mut self.blocks {
                 let instructions = block.1.instr.clone();
@@ -288,7 +289,7 @@ mod patch_instructions {
     }
 }
 
-impl IRToX64Transformer {
+impl<'a> IRToX64Transformer<'a> {
 
     fn next_rbp_offset(&mut self) -> i64 {
         // rbp_offset starts at 0, so need to decrement
@@ -298,13 +299,13 @@ impl IRToX64Transformer {
         self.rbp_offset
     }
 
-    pub fn new(cprog: explicate::IRProgram) -> Self {
+    pub fn new(cfunc: &'a explicate::IRFunction) -> Self {
         IRToX64Transformer {
             externals: RefCell::new(crate::set!()),
-            cprog: cprog,
+            cfunc: cfunc,
             blocks: HashMap::new(),
-            liveness_set: HashMap::new(),
-            vars: Vec::new(),
+            liveness_set: Vec::new(),
+            vars: HashSet::new(),
             rbp_offset: 0,
             prologue_necessary: false,
             memory_patch: x64_def::Reg::R15,
@@ -312,29 +313,20 @@ impl IRToX64Transformer {
         }
     }
 
-    pub fn transform(&mut self) -> x64_def::X64Program {
+    pub fn transform(&mut self) -> x64_def::Function {
 
-        use x64_def::*;
+        use super::x64_def::{*};
 
-        for (label, tail) in &self.cprog.labels {
+        self.cfunc.labels
+        .iter()
+        .map(|(label, tail)| {
 
-            let mut blk_data = BlockData::default();
+            let mut block = Block { info: (), instr: vec!() };
 
-            self.select_instruction(
-                tail,
-                &mut blk_data
-            );
+            self.blocks.insert(label.clone(), block);
 
-            self.blocks.insert(
-                label.clone(),
-                Block {
-                    info: (),
-                    instr: blk_data.instr
-                }
-            );
-
-            self.vars.extend(blk_data.vars);
-        }
+            self.select_instruction(tail, &mut block);
+        });
 
         // this will let us know if we need to patch the entry point
         self.assign_homes();
@@ -386,10 +378,25 @@ impl IRToX64Transformer {
 
         start.instr = fn_start;
 
-        X64Program {
+        Function {
             external: self.externals.take(),
-            vars: self.vars.to_owned(),
             blocks: self.blocks.to_owned()
         }
     }
+}
+
+pub fn ir_to_x64(cprog: explicate::IRProgram) -> X64Program {
+    let x64_fns = 
+        cprog.functions
+        .iter()
+        .map(|(name, func)| {
+
+            let transformer = IRToX64Transformer::new(func);
+
+            return (
+                name.clone(),
+                Function {
+                }
+            )
+        }).collect();
 }

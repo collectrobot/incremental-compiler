@@ -49,7 +49,6 @@ pub enum Tail {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct IRFunction {
-    pub name: IdString,
     pub locals: Vec<IdString>, // function variables
     pub labels: HashMap<IdString, Tail>,
 }
@@ -285,32 +284,39 @@ impl Explicator {
 pub fn explicate_control(program: Program) -> IRProgram {
     let mut explicator = Explicator::new();
 
-    let instructions = explicator.explicate_tail(program.exp);
-
-    let mut labels = HashMap::new();
-    labels.insert(crate::idstr!("start"), instructions);
-
-    let mut locals = explicator.local_vars;
-
-    /*
-        this isn't absolutely required, but means that the locals will look like this:
-
-        [tmp.0, tmp.1]
-        
-        instead of:
-
-        [tmp.1, tmp.0]
-
-        for example
-    */
-    locals.sort_by(
-        |a, b|
-        natord::compare(&*a, &*b)
-    );
-
-    // start is the entry point in clang
     IRProgram {
-        locals: locals,
-        labels: labels,
+        functions:
+            program.functions
+            .iter()
+            .map(|(key, value)| {
+                return (
+                    key.clone(), {
+                        let explicator = Explicator::new();
+                        let instructions = explicator.explicate_tail(value.exp);
+
+                        /*
+                            this isn't absolutely required, but means that the locals will look like this:
+
+                            [tmp.0, tmp.1]
+                            
+                            instead of:
+
+                            [tmp.1, tmp.0]
+
+                            for example
+                        */
+                        let mut fn_locals = explicator.local_vars;
+                        fn_locals.sort_by(
+                            |a, b|
+                            natord::compare(&*a, &*b)
+                        );
+
+                        IRFunction {
+                            locals: fn_locals,
+                            labels: crate::map!(crate::idstr!(".l1") => instructions),
+                        }
+                    }
+                )
+            }).collect()
     }
 }

@@ -58,8 +58,14 @@ pub struct Block {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct Function {
+    pub blocks: HashMap<IdString, Block>,
+    pub vars: Vec<Home>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct X64Program {
     pub external: HashSet<IdString>,
     //pub vars: Vec<Home>, // vars that have a defined home (stack or register)
-    pub blocks: HashMap<IdString, Block>,
+    pub functions: HashMap<IdString, Function>,
 }
