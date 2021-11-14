@@ -323,7 +323,7 @@ pub fn decomplify_program(program: Program) -> Program {
                 return (
                     key.clone(),
                     Function {
-                        exp: rco.decomplify(value.exp)
+                        exp: rco.decomplify(value.exp.clone())
                     }
                 )
             }).collect()

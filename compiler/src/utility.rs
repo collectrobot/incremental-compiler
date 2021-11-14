@@ -9,7 +9,7 @@ use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::partial_eval::{partially_evaluate};
 use crate::frontend::decomplify::{decomplify_program};
 use crate::ir::explicate::{explicate_control, IRProgram};
-use crate::backend::x64_backend::{IRToX64Transformer};
+use crate::backend::x64_backend::{ir_to_x64};
 use crate::backend::x64_def::{X64Program};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -50,7 +50,7 @@ pub fn test_ir_helper(prog: &'static str) -> IRProgram {
 pub fn test_x64_helper(prog: &'static str) -> X64Program {
     let ir = test_ir_helper(prog);
 
-    IRToX64Transformer::new(ir).transform()
+    ir_to_x64(ir)
 }
 
 

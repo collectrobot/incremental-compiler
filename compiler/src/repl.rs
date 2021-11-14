@@ -8,7 +8,7 @@ use crate::frontend::uniquify::{uniquify_program};
 use crate::frontend::decomplify::{decomplify_program};
 use crate::frontend::partial_eval::{partially_evaluate};
 use crate::ir::explicate::{explicate_control};
-use crate::backend::x64_backend::{IRToX64Transformer};
+use crate::backend::x64_backend::{ir_to_x64};
 use crate::interpreter::{
     Interpreter, 
     interp_ast::AstInterpreter,
@@ -260,9 +260,7 @@ program ::= (exp)
             // doesn't matter which one
             println!("> {}\n", result.value.unwrap());
 
-            let x64prog =
-                IRToX64Transformer::new(intermediate_repr)
-                .transform();
+            let x64prog = ir_to_x64(intermediate_repr);
   
             if self.show_x64 {
                 println!("{:#?}", x64prog);

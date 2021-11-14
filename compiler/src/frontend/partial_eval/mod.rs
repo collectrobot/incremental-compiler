@@ -25,10 +25,12 @@ impl PartialEvaluator {
 
     fn evaluate(&mut self) -> Program {
 
+        let fns = self.prog.functions.clone();
+
         Program {
             info: (),
             functions: 
-                self.prog.functions
+                fns
                 .iter()
                 .map(| (key, value) | {
                     return (key.clone(), Function { exp: self.partial_eval_exp(&value.exp)} )

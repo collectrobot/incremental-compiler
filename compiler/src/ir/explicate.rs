@@ -282,8 +282,6 @@ impl Explicator {
 }
 
 pub fn explicate_control(program: Program) -> IRProgram {
-    let mut explicator = Explicator::new();
-
     IRProgram {
         functions:
             program.functions
@@ -291,8 +289,8 @@ pub fn explicate_control(program: Program) -> IRProgram {
             .map(|(key, value)| {
                 return (
                     key.clone(), {
-                        let explicator = Explicator::new();
-                        let instructions = explicator.explicate_tail(value.exp);
+                        let mut explicator = Explicator::new();
+                        let instructions = explicator.explicate_tail(value.exp.clone());
 
                         /*
                             this isn't absolutely required, but means that the locals will look like this:

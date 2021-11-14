@@ -1,6 +1,7 @@
 #![allow(unused)]
 
 use std::collections::HashMap;
+use std::iter::{Iterator};
 
 use crate::types::{IdString};
 
@@ -8,12 +9,13 @@ use super::x64_def::*;
 
 pub struct X64Printer {
     asm: X64Program,
+    current_function: IdString,
 }
 
 impl X64Printer {
 
     fn get_var(&self, name: &IdString) -> Option<&Home> {
-        for home in &self.asm.vars {
+        for home in &self.asm.functions.get(&self.current_function).unwrap().vars {
             if home.name == *name {
                 return Some(home)
             }
@@ -197,10 +199,11 @@ impl X64Printer {
     pub fn new(asm: X64Program) -> Self {
         Self {
             asm: asm,
+            current_function: crate::idstr!(""),
         }
     }
 
-    pub fn print(&self) -> String {
+    pub fn print(&mut self) -> String {
         let mut program = String::new();
 
         let mut external_functions: Vec<String> = vec!();
@@ -213,26 +216,34 @@ impl X64Printer {
             external_functions.push(new_ext);
         }
 
-        let globals = vec!("global start".to_owned());
-
         if external_functions.len() > 0 {
             program += &external_functions.join("\n");
             program += "\n\n";
         }
 
-        program += &globals.join("\n");
+        let check_entry = crate::idstr!("start");
+        if let true = self.asm.functions.contains_key(&check_entry) {
+            program += &check_entry[..];
+            program += "\n";
+        }
+
         program += "\n\n";
 
         program += "section .text";
         program += "\n\n";
 
-        for (label, block) in &self.asm.blocks {
-            program += label;
-            program += ":\n";
+        for (fn_entry, function) in &self.asm.functions {
 
-            for instr in &block.instr {
-                program += "    ";
-                program += &self.instr_to_text(instr);
+            self.current_function = fn_entry.clone();
+
+            for (local_label, block) in &function.blocks {
+                program += &local_label[..];
+                program += ":\n";
+
+                for instr in &block.instr {
+                    program += "    ";
+                    program += &self.instr_to_text(instr);
+                }
             }
         }
 

@@ -16,7 +16,7 @@ pub struct AstInterpreter {
     errors: Vec<String>,
 }
 
-impl AstInterpreter<> {
+impl AstInterpreter {
     pub fn new(p: Program) -> AstInterpreter {
         AstInterpreter {
             program: p,
@@ -28,13 +28,17 @@ impl AstInterpreter<> {
     pub fn run(&mut self) -> Option<RuntimeI64> {
         let mut envir = Environment::new();
 
-        let start = self.program.functions.get(&crate::idstr!("start"));
+        let fns = &self.program.functions;
 
-        if let Some(func) = start {
-            self.interp_exp(&mut envir, &func.exp)
-        } else {
-            self.add_error("entry point could not be found, expected 'start'".to_owned())
+        let start = fns.get(&crate::idstr!("start"));
+
+        if start.is_none() {
+            return self.add_error("entry point could not be found, expected 'start'".to_owned());
         }
+
+        let s = start.unwrap().clone();
+
+        self.interp_exp(&mut envir, &s.exp)
     }
 
     pub fn interpret_success(&self) -> bool {
@@ -86,12 +90,6 @@ impl AstInterpreter<> {
                         Some(-arg1.unwrap())
                     },
                     "read" => {
-
-                        // either we're using cached runtime calls (unlikely as this is the first interpreter being run)
-                        // or we're caching calls to the runtime
-
-                        let fn_name = crate::idstr!("read");
-
                         let input = get_line();
 
                         match input.parse::<RuntimeI64>() {

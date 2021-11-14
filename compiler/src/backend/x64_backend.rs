@@ -14,28 +14,25 @@ use crate::ir::explicate;
 
 use super::x64_def;
 
+// the IRToX64Transformer works on a single function at a time
 pub struct IRToX64Transformer<'a> {
     externals: RefCell<HashSet<IdString>>,
     cfunc: &'a explicate::IRFunction,
     blocks: HashMap<IdString, x64_def::Block>,
     liveness_set: Vec<IdString>,
-    vars: HashSet::<x64_def::Home>,
+    vars: RefCell<HashSet::<x64_def::Home>>,
     rbp_offset: i64,
     prologue_necessary: bool, // do we need a frame pointer ?
     memory_patch: x64_def::Reg, // we might need a register for the case when we end up with an operation taking to memory operands
     mp_used: bool, // flag for above value
 }
 
-/*
-#[derive(Default, Clone, Debug)]
-pub struct BlockData {
-    vars: HashSet<x64_def::Home>,
-    instr: Vec<x64_def::Instr>,
-}
-*/
-
 // map the ir code to x64 instructions 
 mod select_instruction {
+
+    use std::collections::{HashSet};
+
+    use crate::types::{IdString};
 
     use super::x64_def::*;
     use super::IRToX64Transformer;
@@ -51,7 +48,7 @@ mod select_instruction {
                 },
 
                 Atm::Var { name } => {
-                    self.vars.insert(
+                    self.vars.borrow_mut().insert(
                         Home {
                             name: name.clone(),
                             loc: VarLoc::Undefined,
@@ -116,6 +113,10 @@ mod select_instruction {
             }
         }
 
+        pub fn get_externals(self) -> HashSet<IdString> {
+            self.externals.take()
+        }
+
         pub fn select_instruction(&self, tail: &Tail, blk_data: &mut Block) {
 
             match tail {
@@ -177,6 +178,7 @@ mod select_instruction {
 mod assign_homes {
 
     use std::collections::HashSet;
+    use std::cell::{RefCell};
 
     use super::x64_def::{*};
     use super::IRToX64Transformer;
@@ -184,12 +186,11 @@ mod assign_homes {
     impl<'a> IRToX64Transformer<'a> {
         pub fn assign_homes(&mut self) {
 
-            let liveness_set = self.build_liveness_set(&)
-
-            let mut the_vars = self.vars.clone();
+            //let liveness_set = self.build_liveness_set(&)
 
             // sort variables in natural order so we end up with a deterministic
-            // output when stack variables are used
+            // variable ordering
+            let mut the_vars: Vec<Home> = self.vars.borrow().clone().into_iter().collect();
             the_vars.sort_by(
                 |a, b|
                 natord::compare(&*a.name, &*b.name)
@@ -209,7 +210,7 @@ mod assign_homes {
 
             if found_homes.len() > 0 {
                 self.prologue_necessary = true;
-                self.vars = found_homes;
+                self.vars = RefCell::new(found_homes.into_iter().collect());
             }
         }
     }
@@ -305,7 +306,7 @@ impl<'a> IRToX64Transformer<'a> {
             cfunc: cfunc,
             blocks: HashMap::new(),
             liveness_set: Vec::new(),
-            vars: HashSet::new(),
+            vars: RefCell::new(HashSet::new()),
             rbp_offset: 0,
             prologue_necessary: false,
             memory_patch: x64_def::Reg::R15,
@@ -320,12 +321,13 @@ impl<'a> IRToX64Transformer<'a> {
         self.cfunc.labels
         .iter()
         .map(|(label, tail)| {
-
             let mut block = Block { info: (), instr: vec!() };
+
+            self.select_instruction(tail, &mut block);
 
             self.blocks.insert(label.clone(), block);
 
-            self.select_instruction(tail, &mut block);
+            println!("{:?}", self.blocks);
         });
 
         // this will let us know if we need to patch the entry point
@@ -334,7 +336,7 @@ impl<'a> IRToX64Transformer<'a> {
         // this might set mp_used
         self.patch_instructions();
 
-        let start = self.blocks.get_mut(&crate::idstr!("start")).unwrap();
+        let start = self.blocks.get_mut(&crate::idstr!(".l1")).unwrap();
 
         let mut fn_start = start.instr.clone();
 
@@ -348,7 +350,7 @@ impl<'a> IRToX64Transformer<'a> {
 
             // need to also allocate space for variables, i.e. decrement RSP
             let mut rsp_decrement = 0;
-            for home in &self.vars {
+            for home in self.vars.borrow().iter() {
                 match home.loc {
                     VarLoc::Rbp(_) => {
                         rsp_decrement += 8;
@@ -378,25 +380,37 @@ impl<'a> IRToX64Transformer<'a> {
 
         start.instr = fn_start;
 
+        let mut vars: Vec<Home> = self.vars.borrow().clone().into_iter().collect();
+
         Function {
-            external: self.externals.take(),
-            blocks: self.blocks.to_owned()
+            blocks: self.blocks.to_owned(),
+            vars: vars,
         }
     }
 }
 
-pub fn ir_to_x64(cprog: explicate::IRProgram) -> X64Program {
+pub fn ir_to_x64(cprog: explicate::IRProgram) -> x64_def::X64Program {
+
+    let mut externals: HashSet<IdString> = HashSet::new();
+
     let x64_fns = 
         cprog.functions
         .iter()
         .map(|(name, func)| {
 
-            let transformer = IRToX64Transformer::new(func);
+            let mut transformer = IRToX64Transformer::new(func);
+            let func = transformer.transform();
+
+            externals.extend(transformer.get_externals());
 
             return (
                 name.clone(),
-                Function {
-                }
+                func
             )
         }).collect();
+
+    x64_def::X64Program {
+        external: externals,
+        functions: x64_fns
+    }
 }

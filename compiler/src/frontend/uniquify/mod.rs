@@ -102,7 +102,7 @@ pub fn uniquify_program(p: Program) -> Program {
                     Function {
                         exp: uniquify_exp(
                             &mut Vec::<HashMap<IdString, IdString>>::new(),
-                            value.exp) 
+                            value.exp.clone()) 
                     }
                 )
             }).collect(),
