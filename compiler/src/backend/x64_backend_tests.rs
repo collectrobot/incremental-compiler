@@ -1,3 +1,5 @@
+/*
+
 use crate::frontend::lexer::{Lexer};
 use crate::frontend::parser::{Parser};
 use crate::frontend::uniquify::{uniquify_program};
@@ -5,26 +7,15 @@ use crate::frontend::decomplify::{decomplify_program};
 use crate::ir::explicate::{explicate_control};
 
 use super::x64_def::*;
-use super::x64_backend::{IRToX64Transformer};
+use crate::utility::{test_x64_helper};
+
+fn helper(prog: &'static str) -> X64Program {
+    test_x64_helper(prog)
+}
 
 #[test]
 fn x64_ret_constant() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(2)")
-        .lex())
-    .parse(); 
-
-    let x64_asm =
-        IRToX64Transformer::new(
-            explicate_control(
-                decomplify_program(uniquify_program(ast))
-            )
-        )
-        .transform();
-
-    //let start_label = crate::idstr!("start");
-
+    let x64_asm = helper("(2)");
     let block = 
         Block {
             info: (),
@@ -154,3 +145,4 @@ fn x64_patch_instruction() {
         }
     }
 }
+*/

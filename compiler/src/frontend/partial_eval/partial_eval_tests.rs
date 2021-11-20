@@ -1,3 +1,5 @@
+/*
+
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
@@ -157,3 +159,5 @@ fn partial_eval_nested_let() {
         expected
     )
 }
+
+*/

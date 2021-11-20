@@ -15,6 +15,7 @@ use crate::ir::explicate;
 use super::x64_def;
 
 // the IRToX64Transformer works on a single function at a time
+#[derive(Debug)]
 pub struct IRToX64Transformer<'a> {
     externals: RefCell<HashSet<IdString>>,
     cfunc: &'a explicate::IRFunction,
@@ -318,17 +319,13 @@ impl<'a> IRToX64Transformer<'a> {
 
         use super::x64_def::{*};
 
-        self.cfunc.labels
-        .iter()
-        .map(|(label, tail)| {
+        for (label, tail) in &self.cfunc.labels {
             let mut block = Block { info: (), instr: vec!() };
 
-            self.select_instruction(tail, &mut block);
+            self.select_instruction(&tail, &mut block);
 
             self.blocks.insert(label.clone(), block);
-
-            println!("{:?}", self.blocks);
-        });
+        }
 
         // this will let us know if we need to patch the entry point
         self.assign_homes();

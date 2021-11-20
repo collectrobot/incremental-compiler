@@ -223,8 +223,8 @@ impl X64Printer {
 
         let check_entry = crate::idstr!("start");
         if let true = self.asm.functions.contains_key(&check_entry) {
+            program += "global ";
             program += &check_entry[..];
-            program += "\n";
         }
 
         program += "\n\n";
@@ -235,6 +235,9 @@ impl X64Printer {
         for (fn_entry, function) in &self.asm.functions {
 
             self.current_function = fn_entry.clone();
+            program += fn_entry;
+            program += ":";
+            program += "\n\n";
 
             for (local_label, block) in &function.blocks {
                 program += &local_label[..];
