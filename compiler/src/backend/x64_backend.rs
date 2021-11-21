@@ -67,8 +67,6 @@ pub mod liveness {
             }
         };
 
-        //println!("W({}) = {:?}", k, set);
-
         set
     }
 
@@ -94,14 +92,11 @@ pub mod liveness {
             }
         };
 
-        //println!("R({}) = {:?}", k, set);
-
         set
     }
 
     // Lafter (k) = Lbefore (k + 1)
     fn after<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
-        //ls[k].clone()
         before(k + 1, i)
     }
 
