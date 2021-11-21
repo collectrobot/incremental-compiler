@@ -1,148 +1,88 @@
-/*
+use std::collections::{HashSet};
 
-use crate::frontend::lexer::{Lexer};
-use crate::frontend::parser::{Parser};
-use crate::frontend::uniquify::{uniquify_program};
-use crate::frontend::decomplify::{decomplify_program};
-use crate::ir::explicate::{explicate_control};
+use super::x64_def::{*};
 
-use super::x64_def::*;
-use crate::utility::{test_x64_helper};
+use super::x64_backend::liveness::{build_liveness_set};
 
-fn helper(prog: &'static str) -> X64Program {
-    test_x64_helper(prog)
+#[test]
+fn x64_build_liveness_set_one_var() {
+
+    let v_var = Arg::Var(crate::idstr!("v.1"));
+    let rax = Arg::Reg(Reg::Rax);
+
+    let instr: Vec<Instr> = vec!(
+        Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
+        Instr::Mov64(rax.clone(), v_var.clone()),
+        Instr::Add64(rax.clone(), Arg::Imm(6)),
+        Instr::Ret,
+        // {}
+    );
+
+    let expected: Vec<HashSet<&Arg>> = vec!(
+        crate::set!(),
+        crate::set!(&v_var),
+        crate::set!(&rax),
+        crate::set!()
+    );
+
+    let ls = build_liveness_set(&instr);
+
+    assert_eq!(ls, expected);
 }
 
 #[test]
-fn x64_ret_constant() {
-    let x64_asm = helper("(2)");
-    let block = 
-        Block {
-            info: (),
-            instr: vec!(
-                Instr::Mov64(Arg::Reg(Reg::Rax), Arg::Imm(2)),
-                Instr::Ret
-            )
-        };
+fn x64_build_liveness_set_six_vars() {
 
-    let expected = X64Program {
-        external: crate::set!(),
-        //vars: vec!(),
-        blocks: crate::map!(start_label => block)
-    };
+    let v_var = Arg::Var(crate::idstr!("v.1"));
+    let w_var = Arg::Var(crate::idstr!("w.1"));
+    let x_var = Arg::Var(crate::idstr!("x.1"));
+    let y_var = Arg::Var(crate::idstr!("y.1"));
+    let z_var = Arg::Var(crate::idstr!("z.1"));
+    let t_var = Arg::Var(crate::idstr!("t.1"));
+    let rax   = Arg::Reg(Reg::Rax);
 
-    assert_eq!(x64_asm, expected);
+    let instr: Vec<Instr> = vec!(
+        Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
+        // {v}
+        Instr::Mov64(w_var.clone(), Arg::Imm(42)),
+        // {v, w}
+        Instr::Mov64(x_var.clone(), v_var.clone()),
+        // {w, x}
+        Instr::Add64(x_var.clone(), Arg::Imm(7)),
+        // {w, x}
+        Instr::Mov64(y_var.clone(), x_var.clone()),
+        // {w, x, y}
+        Instr::Mov64(z_var.clone(), x_var.clone()),
+        // {w, y, z}
+        Instr::Add64(z_var.clone(), w_var.clone()),
+        // {y, z}
+        Instr::Mov64(t_var.clone(), y_var.clone()),
+        // {t, z}
+        Instr::Neg64(t_var.clone()),
+        // {t, z}
+        Instr::Mov64(rax.clone(), z_var.clone()),
+        // {t, rax}
+        Instr::Add64(rax.clone(), t_var.clone()),
+        // {}
+        Instr::Ret,
+    );
+
+    let expected: Vec<HashSet<&Arg>> = vec!(
+        crate::set!(),
+        crate::set!(&v_var),
+        crate::set!(&v_var, &w_var),
+        crate::set!(&w_var, &x_var),
+        crate::set!(&w_var, &x_var),
+        crate::set!(&w_var, &x_var, &y_var),
+        crate::set!(&w_var, &y_var, &z_var),
+        crate::set!(&y_var, &z_var),
+        crate::set!(&t_var, &z_var),
+        crate::set!(&t_var, &z_var),
+        crate::set!(&t_var, &rax),
+        crate::set!(),
+    );
+
+    let ls = build_liveness_set(&instr);
+
+    assert_eq!(ls, expected);
 }
-
-#[test]
-fn x64_add_negate() {
-    let ast = 
-    Parser::new(
-        Lexer::new("(+ 2 (-1))")
-        .lex())
-    .parse(); 
-
-    let x64_asm =
-        IRToX64Transformer::new(
-            explicate_control(
-                decomplify_program(uniquify_program(ast))
-            )
-        )
-        .transform();
-
-    let temp_var = crate::idstr!("tmp.0");
-
-    let start_label = crate::idstr!("start");
-
-    let block = 
-        Block {
-            info: (),
-            instr: vec!(
-                Instr::Push(Arg::Reg(Reg::Rbp)),
-                Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
-                Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(8)),
-                Instr::Mov64(Arg::Var(temp_var.clone()), Arg::Imm(1)),
-                Instr::Neg64(Arg::Var(temp_var.clone())),
-                Instr::Mov64(Arg::Reg(Reg::Rax), Arg::Imm(2)),
-                Instr::Add64(Arg::Reg(Reg::Rax), Arg::Var(temp_var.clone())),
-                Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
-                Instr::Pop(Arg::Reg(Reg::Rbp)),
-                Instr::Ret
-            )
-        };
-
-    //let vars = x64_asm.vars.clone();
-
-    let expected = X64Program {
-        external: crate::set!(),
-        //vars: vars,
-        blocks: crate::map!(start_label => block)
-    };
-
-    assert_eq!(x64_asm, expected);
-}
-
-#[test]
-fn x64_patch_instruction() {
-
-    // here the patch instruction phase comes into play
-    // setting y to x will result in two memory operands
-    // and so we need to use the patch register to first move one
-    // value into the patch register, and then use the patch register as one of the operands
-
-    let ast = 
-    Parser::new(
-        Lexer::new("(let ([x 42]) (let ([y x]) y))")
-        .lex())
-    .parse(); 
-
-    let x64_asm =
-        IRToX64Transformer::new(
-            explicate_control(
-                decomplify_program(uniquify_program(ast))
-            )
-        )
-        .transform();
-
-    let x_var = crate::idstr!("x.1");
-    let y_var = crate::idstr!("y.2");
-
-    let start_label = crate::idstr!("start");
-
-    let block = 
-        Block {
-            info: (),
-            instr: vec!(
-                Instr::Push(Arg::Reg(Reg::R15)),
-                Instr::Push(Arg::Reg(Reg::Rbp)),
-                Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
-                Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(16)),
-                Instr::Mov64(Arg::Var(x_var.clone()), Arg::Imm(42)),
-                Instr::Mov64(Arg::Reg(Reg::R15), Arg::Var(x_var.clone())),
-                Instr::Mov64(Arg::Var(y_var.clone()), Arg::Reg(Reg::R15)),
-                Instr::Mov64(Arg::Reg(Reg::Rax), Arg::Var(y_var.clone())),
-                Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
-                Instr::Pop(Arg::Reg(Reg::Rbp)),
-                Instr::Pop(Arg::Reg(Reg::R15)),
-                Instr::Ret
-            )
-        };
-
-    //let vars = x64_asm.vars.clone();
-
-    let expected = X64Program {
-        external: crate::set!(),
-        //vars: vars,
-        blocks: crate::map!(start_label => block)
-    };
-
-    for block in &x64_asm.blocks {
-        let x64_block = block.1;
-        let exp_block = expected.blocks.get(block.0).unwrap();
-
-        for i in 0..x64_block.instr.len() {
-            assert_eq!(x64_block.instr[i], exp_block.instr[i]);
-        }
-    }
-}
-*/

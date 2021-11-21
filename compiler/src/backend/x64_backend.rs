@@ -20,12 +20,131 @@ pub struct IRToX64Transformer<'a> {
     externals: RefCell<HashSet<IdString>>,
     cfunc: &'a explicate::IRFunction,
     blocks: HashMap<IdString, x64_def::Block>,
-    liveness_set: Vec<IdString>,
+    liveness_set: Vec<HashSet<x64_def::Arg>>,
     vars: RefCell<HashSet::<x64_def::Home>>,
     rbp_offset: i64,
     prologue_necessary: bool, // do we need a frame pointer ?
     memory_patch: x64_def::Reg, // we might need a register for the case when we end up with an operation taking to memory operands
     mp_used: bool, // flag for above value
+}
+
+pub mod liveness {
+    use std::collections::{HashSet, HashMap};
+    use crate::types::{IdString};
+    use super::x64_def::{*};
+
+    fn to_set<'a>(args: Vec<&'a Arg>) -> HashSet<&'a Arg> {
+        let s: HashSet<&Arg> = args.iter().map(| a | *a).filter( | a | {
+                return match a {
+                    Arg::Reg(_) => true,
+                    Arg::Var(_) => true,
+                    _ => false,
+                }
+            }
+        ).collect();
+
+        s
+    }
+
+    fn written_to<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
+        let set = {
+            match &i[k] {
+                Instr::Mov64(arg, ..) => {
+                    to_set(vec!(arg))
+                },
+
+                Instr::Add64(arg, ..) => {
+                    to_set(vec!(arg))
+                },
+
+                Instr::Neg64(arg) => {
+                    to_set(vec!(arg))
+                }
+
+                _ => {
+                    HashSet::new()
+                }
+            }
+        };
+
+        //println!("W({}) = {:?}", k, set);
+
+        set
+    }
+
+    fn read_from<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
+        let set = {
+
+            match &i[k] {
+                Instr::Mov64(.., is_read_from) => {
+                    to_set(vec!(is_read_from))
+                },
+
+                Instr::Add64(is_modified_in_place, is_read_from) => {
+                    to_set(vec!(is_modified_in_place, is_read_from))
+                },
+
+                Instr::Neg64(is_modified_in_place) => {
+                    to_set(vec!(is_modified_in_place))
+                },
+
+                _ => {
+                    HashSet::new()
+                }
+            }
+        };
+
+        //println!("R({}) = {:?}", k, set);
+
+        set
+    }
+
+    // Lafter (k) = Lbefore (k + 1)
+    fn after<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
+        //ls[k].clone()
+        before(k + 1, i)
+    }
+
+    // Lbefore(k) = (Lafter(k) – W(k)) ∪R(k)
+    fn before<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
+
+        if k >= i.len() {
+            HashSet::new()
+        } else {
+            let mut before_k = after(k, i);
+            let w = written_to(k, i);
+            let r = read_from(k, i);
+
+            let _after = before_k.clone();
+
+            let diff: HashSet<_> = before_k.difference(&w).collect();
+            before_k = diff.iter().map(|val| (*val).clone()).collect();
+
+            let union: HashSet<_> = before_k.union(&r).collect();
+            before_k = union.iter().map(|val| (*val).clone()).collect();
+
+            before_k
+        }
+    }
+
+    pub fn build_liveness_set(i: &Vec<Instr>) -> Vec<HashSet<&Arg>> {
+
+        let mut ls: Vec<HashSet<&Arg>> = vec!();
+        ls.resize(i.len(), crate::set!());
+
+        let n = i.len();
+
+        // ls[k] = the variables that need to be live before this line is executed
+        // i.e. if 't.1' is used on line k, it needs to be live (i.e. it's home needs to stay the same)
+        // until this line (at the very least)
+        for k in (0..n).rev() {
+            let mut b = before(k, i);
+
+            ls[k] = b;
+        }
+
+        ls
+    }
 }
 
 // map the ir code to x64 instructions 
@@ -40,7 +159,6 @@ mod select_instruction {
     use super::explicate::{Atm, Stmt, Tail, Exp};
 
     impl<'a> IRToX64Transformer<'a> {
-
         fn handle_atom(&self, atm: &Atm, blk_data: &mut Block) -> Arg {
 
             match atm {
@@ -176,15 +294,18 @@ mod select_instruction {
 
 // assign homes to variables
 // currently this is just an offset from rbp (i.e. variables live on the stack)
-mod assign_homes {
+pub mod assign_homes {
 
     use std::collections::HashSet;
     use std::cell::{RefCell};
+
+    use crate::types::{IdString};
 
     use super::x64_def::{*};
     use super::IRToX64Transformer;
 
     impl<'a> IRToX64Transformer<'a> {
+
         pub fn assign_homes(&mut self) {
 
             //let liveness_set = self.build_liveness_set(&)
@@ -333,6 +454,7 @@ impl<'a> IRToX64Transformer<'a> {
         // this might set mp_used
         self.patch_instructions();
 
+        // a function should always contain at least one label
         let start = self.blocks.get_mut(&crate::idstr!(".l1")).unwrap();
 
         let mut fn_start = start.instr.clone();

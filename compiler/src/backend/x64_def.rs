@@ -16,7 +16,7 @@ pub enum Reg {
     R12, R13, R14, R15
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash, Eq)]
 pub enum Arg {
     Var(IdString), // for the first pass where variables are still present
     Imm(i64),
