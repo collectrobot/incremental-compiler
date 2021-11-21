@@ -2,10 +2,11 @@ use std::collections::{HashSet};
 
 use super::x64_def::{*};
 
-use super::x64_backend::liveness::{build_liveness_set};
+use super::x64_backend::{FuncLiveSet};
+use super::x64_backend::liveness::{build_liveness_set_for_block, build_liveness_set};
 
 #[test]
-fn x64_build_liveness_set_one_var() {
+fn x64_build_liveness_set_for_block_one_var() {
 
     let v_var = Arg::Var(crate::idstr!("v.1"));
     let rax = Arg::Reg(Reg::Rax);
@@ -25,13 +26,13 @@ fn x64_build_liveness_set_one_var() {
         crate::set!()
     );
 
-    let ls = build_liveness_set(&instr);
+    let ls = build_liveness_set_for_block(&instr);
 
     assert_eq!(ls, expected);
 }
 
 #[test]
-fn x64_build_liveness_set_six_vars() {
+fn x64_build_liveness_set_for_block_six_vars() {
 
     let v_var = Arg::Var(crate::idstr!("v.1"));
     let w_var = Arg::Var(crate::idstr!("w.1"));
@@ -82,7 +83,107 @@ fn x64_build_liveness_set_six_vars() {
         crate::set!(),
     );
 
-    let ls = build_liveness_set(&instr);
+    let ls = build_liveness_set_for_block(&instr);
 
     assert_eq!(ls, expected);
+}
+
+
+#[test]
+fn x64_build_liveness_set_one_label() {
+    
+    let l1 = crate::idstr!(".l1");
+
+    let v_var = Arg::Var(crate::idstr!("v.1"));
+    let rax = Arg::Reg(Reg::Rax);
+
+    let block = Block {
+        info: (),
+        instr: vec!(
+            Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
+            Instr::Mov64(rax.clone(), v_var.clone()),
+            Instr::Add64(rax.clone(), Arg::Imm(6)),
+            Instr::Ret,
+            // {}
+        )
+    };
+
+    let expected: FuncLiveSet = crate::map!(
+        l1.clone() => vec!(
+            crate::set!(),
+            crate::set!(&v_var),
+            crate::set!(&rax),
+            crate::set!()
+        )
+    );
+
+    let func = Function {
+        blocks: crate::map!(l1.clone() => block),
+        vars: vec!(),
+    };
+
+    let result = build_liveness_set(&func);
+
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn x64_build_liveness_set_two_labels() {
+    
+    let l1 = crate::idstr!(".l1");
+    let l2 = crate::idstr!(".l2");
+
+    let v_var = Arg::Var(crate::idstr!("v.1"));
+    let w_var = Arg::Var(crate::idstr!("w.1"));
+
+    let rax = Arg::Reg(Reg::Rax);
+
+    let block1 = Block {
+        info: (),
+        instr: vec!(
+            Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
+            Instr::Jmp(l2.clone()),
+            Instr::Neg64(v_var.clone()),
+            Instr::Add64(v_var.clone(), Arg::Imm(6)),
+            // {}
+        )
+    };
+
+    let block2 = Block {
+        info: (),
+        instr: vec!(
+            Instr::Mov64(w_var.clone(), v_var.clone()),
+            Instr::Add64(w_var.clone(), w_var.clone()),
+            Instr::Neg64(w_var.clone()),
+            Instr::Mov64(rax.clone(), w_var.clone()),
+            Instr::Ret,
+        )
+    };
+
+    let expected: FuncLiveSet = crate::map!(
+        l1.clone() => vec!(
+            crate::set!(),
+            crate::set!(&v_var),
+            crate::set!(&rax),
+            crate::set!()
+        ),
+
+        l2.clone() => vec!(
+            crate::set!()
+        )
+    );
+
+    let func = Function {
+        blocks: crate::map!(
+            l1.clone() => block1,
+            l2.clone() => block2
+        ),
+        vars: vec!(),
+    };
+
+    let result = build_liveness_set(&func);
+
+    println!("{:#?}", result);
+
+    assert_eq!(result, expected);
 }

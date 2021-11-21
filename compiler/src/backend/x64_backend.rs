@@ -14,6 +14,9 @@ use crate::ir::explicate;
 
 use super::x64_def;
 
+pub type BlockLiveSet<'a> = Vec<HashSet<&'a x64_def::Arg>>;
+pub type FuncLiveSet<'a> = HashMap<IdString, BlockLiveSet<'a>>;
+
 // the IRToX64Transformer works on a single function at a time
 #[derive(Debug)]
 pub struct IRToX64Transformer<'a> {
@@ -32,6 +35,7 @@ pub mod liveness {
     use std::collections::{HashSet, HashMap};
     use crate::types::{IdString};
     use super::x64_def::{*};
+    use super::{BlockLiveSet, FuncLiveSet};
 
     fn to_set<'a>(args: Vec<&'a Arg>) -> HashSet<&'a Arg> {
         let s: HashSet<&Arg> = args.iter().map(| a | *a).filter( | a | {
@@ -122,9 +126,9 @@ pub mod liveness {
         }
     }
 
-    pub fn build_liveness_set(i: &Vec<Instr>) -> Vec<HashSet<&Arg>> {
+    pub fn build_liveness_set_for_block(i: &Vec<Instr>) -> BlockLiveSet {
 
-        let mut ls: Vec<HashSet<&Arg>> = vec!();
+        let mut ls = BlockLiveSet::new();
         ls.resize(i.len(), crate::set!());
 
         let n = i.len();
@@ -139,6 +143,16 @@ pub mod liveness {
         }
 
         ls
+    }
+
+    pub fn build_liveness_set(func: &Function) -> FuncLiveSet {
+        let mut func_live_set = FuncLiveSet::new();
+         
+        for (label, block) in &func.blocks {
+            func_live_set.insert(label.clone(), build_liveness_set_for_block(&block.instr));
+        }
+
+        func_live_set
     }
 }
 
