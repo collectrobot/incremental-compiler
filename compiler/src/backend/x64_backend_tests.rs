@@ -26,7 +26,8 @@ fn x64_build_liveness_set_for_block_one_var() {
         crate::set!()
     );
 
-    let ls = build_liveness_set_for_block(&instr);
+    // no jump instructions in this block
+    let (ls, _) = build_liveness_set_for_block(&instr);
 
     assert_eq!(ls, expected);
 }
@@ -83,7 +84,8 @@ fn x64_build_liveness_set_for_block_six_vars() {
         crate::set!(),
     );
 
-    let ls = build_liveness_set_for_block(&instr);
+    // no jump instructions in this block
+    let (ls, _) = build_liveness_set_for_block(&instr);
 
     assert_eq!(ls, expected);
 }
@@ -135,27 +137,30 @@ fn x64_build_liveness_set_two_labels() {
 
     let v_var = Arg::Var(crate::idstr!("v.1"));
     let w_var = Arg::Var(crate::idstr!("w.1"));
+    let t_var = Arg::Var(crate::idstr!("t.1"));
 
     let rax = Arg::Reg(Reg::Rax);
 
     let block1 = Block {
         info: (),
         instr: vec!(
+            Instr::Mov64(t_var.clone(), Arg::Imm(230)),
             Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
             Instr::Jmp(l2.clone()),
             Instr::Neg64(v_var.clone()),
             Instr::Add64(v_var.clone(), Arg::Imm(6)),
-            // {}
+            Instr::Add64(t_var.clone(), v_var.clone()),
         )
     };
 
     let block2 = Block {
         info: (),
         instr: vec!(
-            Instr::Mov64(w_var.clone(), v_var.clone()),
-            Instr::Add64(w_var.clone(), w_var.clone()),
+            Instr::Mov64(w_var.clone(), Arg::Imm(200)),
+            Instr::Add64(w_var.clone(), t_var.clone()),
             Instr::Neg64(w_var.clone()),
             Instr::Mov64(rax.clone(), w_var.clone()),
+            Instr::Add64(rax.clone(), t_var.clone()),
             Instr::Ret,
         )
     };
@@ -163,12 +168,24 @@ fn x64_build_liveness_set_two_labels() {
     let expected: FuncLiveSet = crate::map!(
         l1.clone() => vec!(
             crate::set!(),
-            crate::set!(&v_var),
-            crate::set!(&rax),
-            crate::set!()
+            crate::set!(&t_var),
+
+            // below is the jump instruction
+            // its liveness set should be that of the first
+            // instruction in the target block/label
+            crate::set!(&t_var), 
+
+            crate::set!(&v_var, &t_var),
+            crate::set!(&v_var, &t_var),
+            crate::set!(&v_var, &t_var),
         ),
 
         l2.clone() => vec!(
+            crate::set!(&t_var),
+            crate::set!(&w_var, &t_var),
+            crate::set!(&w_var, &t_var),
+            crate::set!(&w_var, &t_var),
+            crate::set!(&rax, &t_var),
             crate::set!()
         )
     );
@@ -182,8 +199,6 @@ fn x64_build_liveness_set_two_labels() {
     };
 
     let result = build_liveness_set(&func);
-
-    println!("{:#?}", result);
 
     assert_eq!(result, expected);
 }

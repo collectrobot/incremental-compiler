@@ -14,8 +14,12 @@ use crate::ir::explicate;
 
 use super::x64_def;
 
+// the blocks kth instruction needs the label's first instruction's liveness set
+pub type BlockJumpPatch   = HashMap<(IdString, usize), IdString>; 
+
 pub type BlockLiveSet<'a> = Vec<HashSet<&'a x64_def::Arg>>;
-pub type FuncLiveSet<'a> = HashMap<IdString, BlockLiveSet<'a>>;
+
+pub type FuncLiveSet<'a>  = HashMap<IdString, BlockLiveSet<'a>>;
 
 // the IRToX64Transformer works on a single function at a time
 #[derive(Debug)]
@@ -35,7 +39,7 @@ pub mod liveness {
     use std::collections::{HashSet, HashMap};
     use crate::types::{IdString};
     use super::x64_def::{*};
-    use super::{BlockLiveSet, FuncLiveSet};
+    use super::{BlockJumpPatch, BlockLiveSet, FuncLiveSet};
 
     fn to_set<'a>(args: Vec<&'a Arg>) -> HashSet<&'a Arg> {
         let s: HashSet<&Arg> = args.iter().map(| a | *a).filter( | a | {
@@ -126,7 +130,8 @@ pub mod liveness {
         }
     }
 
-    pub fn build_liveness_set_for_block(i: &Vec<Instr>) -> BlockLiveSet {
+    pub fn build_liveness_set_for_block<'a>(i: &'a Vec<Instr>) -> (BlockLiveSet<'a>, Vec<(usize, IdString)>) {
+        let mut jmp_patches: Vec<(usize, IdString)> = vec!();
 
         let mut ls = BlockLiveSet::new();
         ls.resize(i.len(), crate::set!());
@@ -134,23 +139,47 @@ pub mod liveness {
         let n = i.len();
 
         // ls[k] = the variables that need to be live before this line is executed
-        // i.e. if 't.1' is used on line k, it needs to be live (i.e. it's home needs to stay the same)
+        // i.e. if 't.1' is used on line k, it needs to be live (i.e. its home needs to stay the same)
         // until this line (at the very least)
         for k in (0..n).rev() {
+
+            if let Instr::Jmp(label) = &i[k] {
+                jmp_patches.push((k, label.clone()));
+            }
+
             let mut b = before(k, i);
 
             ls[k] = b;
         }
 
-        ls
+        (ls, jmp_patches)
+    }
+
+    fn patch_jumps(fls: &mut FuncLiveSet, patches: &BlockJumpPatch) -> () {
+        for ((update_block, position), from_block) in patches {
+            let updated_liveness_set = fls.get(from_block).unwrap()[0].clone();
+
+            let block_to_update = fls.get_mut(update_block).unwrap();
+
+            block_to_update[*position] = updated_liveness_set;
+        }
     }
 
     pub fn build_liveness_set(func: &Function) -> FuncLiveSet {
         let mut func_live_set = FuncLiveSet::new();
+        let mut jump_patches = BlockJumpPatch::new();
          
         for (label, block) in &func.blocks {
-            func_live_set.insert(label.clone(), build_liveness_set_for_block(&block.instr));
+
+            let (block_live_set, jmp_patch) = build_liveness_set_for_block(&block.instr);
+            for (pos, lbl) in &jmp_patch {
+                jump_patches.insert((label.clone(), *pos), lbl.clone());
+            }
+
+            func_live_set.insert(label.clone(), block_live_set);
         }
+
+        patch_jumps(&mut func_live_set, &jump_patches);
 
         func_live_set
     }
