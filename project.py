@@ -128,8 +128,6 @@ def do_argparse():
         else:
             de_list_args[arg] = args[arg]
 
-    print(de_list_args)
-    
     return de_list_args
 
 if __name__ == "__main__":
