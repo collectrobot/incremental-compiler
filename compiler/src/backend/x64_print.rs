@@ -239,11 +239,11 @@ impl X64Printer {
             program += ":";
             program += "\n\n";
 
-            for (local_label, block) in &function.blocks {
-                program += &local_label[..];
+            for label_block_pair in &function.blocks {
+                program += &label_block_pair.label[..];
                 program += ":\n";
 
-                for instr in &block.instr {
+                for instr in &label_block_pair.block.instr {
                     program += "    ";
                     program += &self.instr_to_text(instr);
                 }

@@ -2,7 +2,7 @@ use std::collections::{HashSet};
 
 use super::x64_def::{*};
 
-use super::x64_backend::{FuncLiveSet};
+use super::x64_backend::{AllBlockLiveSet};
 use super::x64_backend::liveness::{build_liveness_set_for_block, build_liveness_set};
 
 #[test]
@@ -19,10 +19,10 @@ fn x64_build_liveness_set_for_block_one_var() {
         // {}
     );
 
-    let expected: Vec<HashSet<&Arg>> = vec!(
+    let expected: Vec<HashSet<Arg>> = vec!(
         crate::set!(),
-        crate::set!(&v_var),
-        crate::set!(&rax),
+        crate::set!(v_var),
+        crate::set!(rax),
         crate::set!()
     );
 
@@ -69,18 +69,18 @@ fn x64_build_liveness_set_for_block_six_vars() {
         Instr::Ret,
     );
 
-    let expected: Vec<HashSet<&Arg>> = vec!(
+    let expected: Vec<HashSet<Arg>> = vec!(
         crate::set!(),
-        crate::set!(&v_var),
-        crate::set!(&v_var, &w_var),
-        crate::set!(&w_var, &x_var),
-        crate::set!(&w_var, &x_var),
-        crate::set!(&w_var, &x_var, &y_var),
-        crate::set!(&w_var, &y_var, &z_var),
-        crate::set!(&y_var, &z_var),
-        crate::set!(&t_var, &z_var),
-        crate::set!(&t_var, &z_var),
-        crate::set!(&t_var, &rax),
+        crate::set!(v_var.clone()),
+        crate::set!(v_var.clone(), w_var.clone()),
+        crate::set!(w_var.clone(), x_var.clone()),
+        crate::set!(w_var.clone(), x_var.clone()),
+        crate::set!(w_var.clone(), x_var.clone(), y_var.clone()),
+        crate::set!(w_var.clone(), y_var.clone(), z_var.clone()),
+        crate::set!(y_var.clone(), z_var.clone()),
+        crate::set!(t_var.clone(), z_var.clone()),
+        crate::set!(t_var.clone(), z_var.clone()),
+        crate::set!(t_var.clone(), rax),
         crate::set!(),
     );
 
@@ -99,32 +99,32 @@ fn x64_build_liveness_set_one_label() {
     let v_var = Arg::Var(crate::idstr!("v.1"));
     let rax = Arg::Reg(Reg::Rax);
 
-    let block = Block {
-        info: (),
-        instr: vec!(
-            Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
-            Instr::Mov64(rax.clone(), v_var.clone()),
-            Instr::Add64(rax.clone(), Arg::Imm(6)),
-            Instr::Ret,
-            // {}
-        )
-    };
+    let lbp = vec!(
+        LabelBlockPair {
+        label: l1.clone(),
+        block: 
+            Block {
+                info: (),
+                instr: vec!(
+                    Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
+                    Instr::Mov64(rax.clone(), v_var.clone()),
+                    Instr::Add64(rax.clone(), Arg::Imm(6)),
+                    Instr::Ret,
+                    // {}
+                )
+            }
+    });
 
-    let expected: FuncLiveSet = crate::map!(
+    let expected: AllBlockLiveSet = crate::map!(
         l1.clone() => vec!(
             crate::set!(),
-            crate::set!(&v_var),
-            crate::set!(&rax),
+            crate::set!(v_var),
+            crate::set!(rax),
             crate::set!()
         )
     );
 
-    let func = Function {
-        blocks: crate::map!(l1.clone() => block),
-        vars: vec!(),
-    };
-
-    let result = build_liveness_set(&func);
+    let result = build_liveness_set(&lbp);
 
     assert_eq!(result, expected);
 }
@@ -141,64 +141,66 @@ fn x64_build_liveness_set_two_labels() {
 
     let rax = Arg::Reg(Reg::Rax);
 
-    let block1 = Block {
-        info: (),
-        instr: vec!(
-            Instr::Mov64(t_var.clone(), Arg::Imm(230)),
-            Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
-            Instr::Jmp(l2.clone()),
-            Instr::Neg64(v_var.clone()),
-            Instr::Add64(v_var.clone(), Arg::Imm(6)),
-            Instr::Add64(t_var.clone(), v_var.clone()),
-        )
-    };
+    let lbps = vec!(
+        LabelBlockPair {
+            label: l1.clone(),
+            block: 
+                Block {
+                    info: (),
+                    instr: vec!(
+                        Instr::Mov64(t_var.clone(), Arg::Imm(230)),
+                        Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
+                        Instr::Jmp(l2.clone()),
+                        Instr::Neg64(v_var.clone()),
+                        Instr::Add64(v_var.clone(), Arg::Imm(6)),
+                        Instr::Add64(t_var.clone(), v_var.clone()),
+                    )
+                }
+        },
 
-    let block2 = Block {
-        info: (),
-        instr: vec!(
-            Instr::Mov64(w_var.clone(), Arg::Imm(200)),
-            Instr::Add64(w_var.clone(), t_var.clone()),
-            Instr::Neg64(w_var.clone()),
-            Instr::Mov64(rax.clone(), w_var.clone()),
-            Instr::Add64(rax.clone(), t_var.clone()),
-            Instr::Ret,
-        )
-    };
+        LabelBlockPair {
+            label: l2.clone(),
+            block:
+                Block {
+                    info: (),
+                    instr: vec!(
+                        Instr::Mov64(w_var.clone(), Arg::Imm(200)),
+                        Instr::Add64(w_var.clone(), t_var.clone()),
+                        Instr::Neg64(w_var.clone()),
+                        Instr::Mov64(rax.clone(), w_var.clone()),
+                        Instr::Add64(rax.clone(), t_var.clone()),
+                        Instr::Ret,
+                    )
+                }
+        },
+    );
 
-    let expected: FuncLiveSet = crate::map!(
+    let expected: AllBlockLiveSet = crate::map!(
         l1.clone() => vec!(
             crate::set!(),
-            crate::set!(&t_var),
+            crate::set!(t_var.clone()),
 
             // below is the jump instruction
             // its liveness set should be that of the first
             // instruction in the target block/label
-            crate::set!(&t_var), 
+            crate::set!(t_var.clone()), 
 
-            crate::set!(&v_var, &t_var),
-            crate::set!(&v_var, &t_var),
-            crate::set!(&v_var, &t_var),
+            crate::set!(v_var.clone(), t_var.clone()),
+            crate::set!(v_var.clone(), t_var.clone()),
+            crate::set!(v_var.clone(), t_var.clone()),
         ),
 
         l2.clone() => vec!(
-            crate::set!(&t_var),
-            crate::set!(&w_var, &t_var),
-            crate::set!(&w_var, &t_var),
-            crate::set!(&w_var, &t_var),
-            crate::set!(&rax, &t_var),
+            crate::set!(t_var.clone()),
+            crate::set!(w_var.clone(), t_var.clone()),
+            crate::set!(w_var.clone(), t_var.clone()),
+            crate::set!(w_var.clone(), t_var.clone()),
+            crate::set!(rax, t_var),
             crate::set!()
         )
     );
 
-    let func = Function {
-        blocks: crate::map!(
-            l1.clone() => block1,
-            l2.clone() => block2
-        ),
-        vars: vec!(),
-    };
-
-    let result = build_liveness_set(&func);
+    let result = build_liveness_set(&lbps);
 
     assert_eq!(result, expected);
 }

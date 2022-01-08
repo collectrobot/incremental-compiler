@@ -8,6 +8,21 @@ use std::collections::HashSet;
 
 use crate::types::{IdString};
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct LabelBlockPair {
+    pub label: IdString,
+    pub block: Block,
+}
+
+impl LabelBlockPair {
+    pub fn new(label: IdString, block: Block) -> Self {
+        LabelBlockPair {
+            label: label,
+            block: block,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum Reg {
     Rsp, Rbp, Rax, Rbx,
@@ -38,7 +53,7 @@ pub struct Home {
     pub loc: VarLoc,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Instr {
     Add64(Arg, Arg),
     Sub64(Arg, Arg),
@@ -51,7 +66,7 @@ pub enum Instr {
     Jmp(IdString),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct Block {
     pub info: (),
     pub instr: Vec<Instr>,
@@ -59,13 +74,12 @@ pub struct Block {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
-    pub blocks: HashMap<IdString, Block>,
+    pub blocks: Vec<LabelBlockPair>,
     pub vars: Vec<Home>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct X64Program {
     pub external: HashSet<IdString>,
-    //pub vars: Vec<Home>, // vars that have a defined home (stack or register)
     pub functions: HashMap<IdString, Function>,
 }

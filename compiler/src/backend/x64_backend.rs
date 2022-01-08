@@ -17,17 +17,18 @@ use super::x64_def;
 // the blocks kth instruction needs the label's first instruction's liveness set
 pub type BlockJumpPatch   = HashMap<(IdString, usize), IdString>; 
 
-pub type BlockLiveSet<'a> = Vec<HashSet<&'a x64_def::Arg>>;
+pub type BlockLiveSet = Vec<HashSet<x64_def::Arg>>;
 
-pub type FuncLiveSet<'a>  = HashMap<IdString, BlockLiveSet<'a>>;
+pub type AllBlockLiveSet = HashMap<IdString, BlockLiveSet>;
 
 // the IRToX64Transformer works on a single function at a time
 #[derive(Debug)]
 pub struct IRToX64Transformer<'a> {
     externals: RefCell<HashSet<IdString>>,
+    name: IdString,
     cfunc: &'a explicate::IRFunction,
-    blocks: HashMap<IdString, x64_def::Block>,
-    liveness_set: Vec<HashSet<x64_def::Arg>>,
+    lbps: Vec<x64_def::LabelBlockPair>,
+    liveness_set: AllBlockLiveSet,
     vars: RefCell<HashSet::<x64_def::Home>>,
     rbp_offset: i64,
     prologue_necessary: bool, // do we need a frame pointer ?
@@ -38,8 +39,8 @@ pub struct IRToX64Transformer<'a> {
 pub mod liveness {
     use std::collections::{HashSet, HashMap};
     use crate::types::{IdString};
+    use super::{BlockJumpPatch, BlockLiveSet, AllBlockLiveSet};
     use super::x64_def::{*};
-    use super::{BlockJumpPatch, BlockLiveSet, FuncLiveSet};
 
     fn to_set<'a>(args: Vec<&'a Arg>) -> HashSet<&'a Arg> {
         let s: HashSet<&Arg> = args.iter().map(| a | *a).filter( | a | {
@@ -118,8 +119,6 @@ pub mod liveness {
             let w = written_to(k, i);
             let r = read_from(k, i);
 
-            let _after = before_k.clone();
-
             let diff: HashSet<_> = before_k.difference(&w).collect();
             before_k = diff.iter().map(|val| (*val).clone()).collect();
 
@@ -130,7 +129,7 @@ pub mod liveness {
         }
     }
 
-    pub fn build_liveness_set_for_block<'a>(i: &'a Vec<Instr>) -> (BlockLiveSet<'a>, Vec<(usize, IdString)>) {
+    pub fn build_liveness_set_for_block<'a>(i: &'a Vec<Instr>) -> (BlockLiveSet, Vec<(usize, IdString)>) {
         let mut jmp_patches: Vec<(usize, IdString)> = vec!();
 
         let mut ls = BlockLiveSet::new();
@@ -149,39 +148,41 @@ pub mod liveness {
 
             let mut b = before(k, i);
 
-            ls[k] = b;
+            let to_owned: HashSet<_> = b.into_iter().map(|x| x.clone()).collect();
+
+            ls[k] = to_owned;
         }
 
         (ls, jmp_patches)
     }
 
-    fn patch_jumps(fls: &mut FuncLiveSet, patches: &BlockJumpPatch) -> () {
+    fn patch_jumps(bls: &mut AllBlockLiveSet, patches: &BlockJumpPatch) -> () {
         for ((update_block, position), from_block) in patches {
-            let updated_liveness_set = fls.get(from_block).unwrap()[0].clone();
+            let updated_liveness_set = bls.get(from_block).unwrap()[0].clone();
 
-            let block_to_update = fls.get_mut(update_block).unwrap();
+            let block_to_update = bls.get_mut(update_block).unwrap();
 
             block_to_update[*position] = updated_liveness_set;
         }
     }
 
-    pub fn build_liveness_set(func: &Function) -> FuncLiveSet {
-        let mut func_live_set = FuncLiveSet::new();
+    pub fn build_liveness_set(blocks: &Vec<LabelBlockPair>) -> AllBlockLiveSet {
+        let mut blocks_live_set = AllBlockLiveSet::new();
         let mut jump_patches = BlockJumpPatch::new();
          
-        for (label, block) in &func.blocks {
+        for lbp in blocks {
 
-            let (block_live_set, jmp_patch) = build_liveness_set_for_block(&block.instr);
+            let (block_live_set, jmp_patch) = build_liveness_set_for_block(&lbp.block.instr);
             for (pos, lbl) in &jmp_patch {
-                jump_patches.insert((label.clone(), *pos), lbl.clone());
+                jump_patches.insert((lbp.label.clone(), *pos), lbl.clone());
             }
 
-            func_live_set.insert(label.clone(), block_live_set);
+            blocks_live_set.insert(lbp.label.clone(), block_live_set);
         }
 
-        patch_jumps(&mut func_live_set, &jump_patches);
+        patch_jumps(&mut blocks_live_set, &jump_patches);
 
-        func_live_set
+        blocks_live_set
     }
 }
 
@@ -332,7 +333,7 @@ mod select_instruction {
 
 // assign homes to variables
 // currently this is just an offset from rbp (i.e. variables live on the stack)
-pub mod assign_homes {
+mod assign_homes {
 
     use std::collections::HashSet;
     use std::cell::{RefCell};
@@ -345,8 +346,6 @@ pub mod assign_homes {
     impl<'a> IRToX64Transformer<'a> {
 
         pub fn assign_homes(&mut self) {
-
-            //let liveness_set = self.build_liveness_set(&)
 
             // sort variables in natural order so we end up with a deterministic
             // variable ordering
@@ -436,16 +435,55 @@ mod patch_instructions {
 
     impl<'a> IRToX64Transformer<'a> {
         pub fn patch_instructions(&mut self) {
-            for block in &mut self.blocks {
-                let instructions = block.1.instr.clone();
+            for lbp in &mut self.lbps {
+                let instructions = lbp.block.instr.clone();
 
                 let (patched, instructions) = patch(instructions);
 
                 if patched {
                     self.mp_used = true;
-                    block.1.instr = instructions;
+                    lbp.block.instr = instructions;
                 }
             }
+        }
+
+        pub fn add_prelude_and_conclusion(&mut self) {
+            let pre = crate::idstr!("prelude");
+            let con = crate::idstr!("conclusion");
+
+            let prelude = LabelBlockPair {
+                label: pre.clone(),
+                block: Block {
+                    info: (),
+                    instr:
+                        vec!(
+                            Instr::Push(Arg::Reg(Reg::Rbp)),
+                            Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)),
+                            Instr::Jmp(crate::idstr!(".l1")),
+                        )
+                }
+            };
+
+            let conclusion = LabelBlockPair {
+                label: con.clone(),
+                block: Block {
+                    info: (),
+                    instr:
+                        vec!(
+                            Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)),
+                            Instr::Pop(Arg::Reg(Reg::Rbp)),
+                        )
+                }
+            };
+
+            let last_label_before_conclusion = self.lbps.len() - 1;
+            self.lbps[last_label_before_conclusion].block.instr.push(
+                Instr::Jmp(con),
+            );
+
+            self.lbps.insert(0, prelude);
+            self.lbps.push(conclusion);
+
         }
     }
 }
@@ -460,12 +498,13 @@ impl<'a> IRToX64Transformer<'a> {
         self.rbp_offset
     }
 
-    pub fn new(cfunc: &'a explicate::IRFunction) -> Self {
+    pub fn new(name: IdString, cfunc: &'a explicate::IRFunction) -> Self {
         IRToX64Transformer {
             externals: RefCell::new(crate::set!()),
+            name: name,
             cfunc: cfunc,
-            blocks: HashMap::new(),
-            liveness_set: Vec::new(),
+            lbps: Vec::new(),
+            liveness_set: AllBlockLiveSet::new(),
             vars: RefCell::new(HashSet::new()),
             rbp_offset: 0,
             prologue_necessary: false,
@@ -477,33 +516,39 @@ impl<'a> IRToX64Transformer<'a> {
     pub fn transform(&mut self) -> x64_def::Function {
 
         use super::x64_def::{*};
+        use super::x64_backend::liveness;
 
         for (label, tail) in &self.cfunc.labels {
             let mut block = Block { info: (), instr: vec!() };
 
             self.select_instruction(&tail, &mut block);
 
-            self.blocks.insert(label.clone(), block);
+            self.lbps.push(LabelBlockPair::new(label.clone(), block));
         }
 
-        // this will let us know if we need to patch the entry point
-        self.assign_homes();
+        // this means .l1 will appear before .l2 and so on
+        // and so self.lbps[self.lbps.len()-1] will be the conclusion
+        // (which we might need to change)
+        self.lbps.sort_by(
+            |a, b|
+            natord::compare(&*a.label, &*b.label)
+        );
+
+        self.add_prelude_and_conclusion();
 
         // this might set mp_used
         self.patch_instructions();
 
-        // a function should always contain at least one label
-        let start = self.blocks.get_mut(&crate::idstr!(".l1")).unwrap();
+        self.liveness_set = liveness::build_liveness_set(&self.lbps);
 
-        let mut fn_start = start.instr.clone();
+        // this will let us know if we need to patch the entry point
+        self.assign_homes();
 
-        let mut fn_end: Vec<Instr> = vec!();
+        let prologue_index = 0;
+        let conclusion_index = self.lbps.len()-1;
 
         if self.prologue_necessary {
             // patch the entry function if we need to
-
-            fn_start.insert(0, Instr::Push(Arg::Reg(Reg::Rbp)));
-            fn_start.insert(1, Instr::Mov64(Arg::Reg(Reg::Rbp), Arg::Reg(Reg::Rsp)));
 
             // need to also allocate space for variables, i.e. decrement RSP
             let mut rsp_decrement = 0;
@@ -518,29 +563,23 @@ impl<'a> IRToX64Transformer<'a> {
             }
 
             if rsp_decrement > 0 {
-                fn_start.insert(2, Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(rsp_decrement)));
+                let rsp_sub_index = 2;
+                self.lbps[prologue_index].block.instr.insert(rsp_sub_index, Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(rsp_decrement)));
+                self.lbps[conclusion_index].block.instr.insert(0, Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(rsp_decrement)));
             }
-
-            fn_end.push(Instr::Mov64(Arg::Reg(Reg::Rsp), Arg::Reg(Reg::Rbp)));
-            fn_end.push(Instr::Pop(Arg::Reg(Reg::Rbp)));
 
             if self.mp_used {
-                fn_start.insert(0, Instr::Push(Arg::Reg(self.memory_patch)));
-                fn_end.push(Instr::Pop(Arg::Reg(self.memory_patch)));
+                self.lbps[prologue_index].block.instr.push(Instr::Push(Arg::Reg(self.memory_patch)));
+                self.lbps[conclusion_index].block.instr.push(Instr::Pop(Arg::Reg(self.memory_patch)));
             }
-
         }
 
-        fn_end.push(Instr::Ret);
-
-        fn_start.extend(fn_end);
-
-        start.instr = fn_start;
+        self.lbps[conclusion_index].block.instr.push(Instr::Ret);
 
         let mut vars: Vec<Home> = self.vars.borrow().clone().into_iter().collect();
 
         Function {
-            blocks: self.blocks.to_owned(),
+            blocks: self.lbps.to_owned(),
             vars: vars,
         }
     }
@@ -555,7 +594,7 @@ pub fn ir_to_x64(cprog: explicate::IRProgram) -> x64_def::X64Program {
         .iter()
         .map(|(name, func)| {
 
-            let mut transformer = IRToX64Transformer::new(func);
+            let mut transformer = IRToX64Transformer::new(name.clone(), func);
             let func = transformer.transform();
 
             externals.extend(transformer.get_externals());
