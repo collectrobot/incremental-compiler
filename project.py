@@ -51,7 +51,7 @@ def build_runtime(args):
 
     if success:
 
-        lib_list = ["{}".format(static_lib_src), "kernel32.lib", "ws2_32.lib", "advapi32.lib", "userenv.lib", "libcmt.lib", "libucrt.lib"]
+        lib_list = ["{}".format(static_lib_src), "bcrypt.lib", "kernel32.lib", "ws2_32.lib", "advapi32.lib", "userenv.lib", "libcmt.lib", "libucrt.lib"]
 
         print(
             "combining static libraries: {}\n".format(lib_list) +

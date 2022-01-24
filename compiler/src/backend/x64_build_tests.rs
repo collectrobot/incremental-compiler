@@ -35,3 +35,17 @@ fn x64_build_add_two_read() {
     let builder = X64Builder::new(crate::function!().to_string(), asm_text);
     builder.build();
 }
+
+#[test]
+fn x64_build_two_let_read() {
+    let x64_asm = helper(
+        "(let ([x (read)]) \
+            (let ([y (read)]) \
+                (+ (+ x y) 42)))"
+            );
+    
+    let asm_text = X64Printer::new(x64_asm).print();
+
+    let builder = X64Builder::new(crate::function!().to_string(), asm_text);
+    builder.build();
+}

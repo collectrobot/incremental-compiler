@@ -397,7 +397,22 @@ mod patch_instructions {
         for instruction in &instr {
             match instruction {
                 Instr::Add64(src, dest) => {
-                    patched_instructions.push(instruction.clone());
+
+                    match (src, dest) {
+                        (Arg::Var(x), Arg::Var(y)) => {
+                            patched_instructions.push(Instr::Mov64(Arg::Reg(Reg::R15), Arg::Var(y.clone())));
+
+                            patched_instructions.push(
+                                Instr::Mov64(Arg::Var(x.clone()), Arg::Reg(Reg::R15)),
+                            );
+
+                            patched = true;
+                        },
+
+                        _ => {
+                            patched_instructions.push(instruction.clone());
+                        }
+                    }
                 },
 
                 Instr::Mov64(src, dest) => {
@@ -419,10 +434,6 @@ mod patch_instructions {
                         }
                     }
                 },
-
-                Instr::Sub64(src, dest) => {
-                    patched_instructions.push(instruction.clone());
-                }
 
                 _ => {
                     patched_instructions.push(instruction.clone());
