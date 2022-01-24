@@ -36,7 +36,7 @@ pub struct IRToX64Transformer<'a> {
     mp_used: bool, // flag for above value
 }
 
-pub mod liveness {
+mod liveness {
     use std::collections::{HashSet, HashMap};
     use crate::types::{IdString};
     use super::{BlockJumpPatch, BlockLiveSet, AllBlockLiveSet};
