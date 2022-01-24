@@ -403,7 +403,7 @@ mod patch_instructions {
                             patched_instructions.push(Instr::Mov64(Arg::Reg(Reg::R15), Arg::Var(y.clone())));
 
                             patched_instructions.push(
-                                Instr::Mov64(Arg::Var(x.clone()), Arg::Reg(Reg::R15)),
+                                Instr::Add64(Arg::Var(x.clone()), Arg::Reg(Reg::R15)),
                             );
 
                             patched = true;
@@ -579,10 +579,14 @@ impl<'a> IRToX64Transformer<'a> {
                 self.lbps[conclusion_index].block.instr.insert(0, Instr::Sub64(Arg::Reg(Reg::Rsp), Arg::Imm(rsp_decrement)));
             }
 
-            if self.mp_used {
-                self.lbps[prologue_index].block.instr.push(Instr::Push(Arg::Reg(self.memory_patch)));
-                self.lbps[conclusion_index].block.instr.push(Instr::Pop(Arg::Reg(self.memory_patch)));
-            }
+        }
+
+        if self.mp_used {
+            let before_prologue_jump = self.lbps[prologue_index].block.instr.len()-2;
+            let first_conclusion_index = 1;
+
+            self.lbps[prologue_index].block.instr.insert(before_prologue_jump, Instr::Push(Arg::Reg(self.memory_patch)));
+            self.lbps[conclusion_index].block.instr.insert(first_conclusion_index, Instr::Pop(Arg::Reg(self.memory_patch)));
         }
 
         self.lbps[conclusion_index].block.instr.push(Instr::Ret);
