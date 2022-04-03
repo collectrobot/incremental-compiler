@@ -33,6 +33,34 @@ fn x64_build_liveness_set_for_block_one_var() {
 }
 
 #[test]
+fn x64_build_liveness_set_read_test() {
+    let v_var = Arg::Var(crate::idstr!("v.1"));
+    let rax = Arg::Reg(Reg::Rax);
+
+    let instr: Vec<Instr> = vec!(
+        Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
+        Instr::Add64(v_var.clone(), Arg::Imm(23)), 
+        Instr::Add64(v_var.clone(), Arg::Imm(6)), 
+        Instr::Mov64(rax.clone(), v_var.clone()),
+        Instr::Jmp(crate::idstr!(".conclusion")),
+        // {}
+    );
+
+    let expected: Vec<HashSet<Arg>> = vec!(
+        crate::set!(),
+        crate::set!(v_var.clone()),
+        crate::set!(v_var.clone()),
+        crate::set!(v_var.clone()),
+        crate::set!(),
+    );
+
+    // no jump instructions in this block
+    let (ls, _) = build_liveness_set_for_block(&instr);
+
+    assert_eq!(ls, expected);
+}
+
+#[test]
 fn x64_build_liveness_set_for_block_six_vars() {
 
     let v_var = Arg::Var(crate::idstr!("v.1"));
@@ -42,6 +70,7 @@ fn x64_build_liveness_set_for_block_six_vars() {
     let z_var = Arg::Var(crate::idstr!("z.1"));
     let t_var = Arg::Var(crate::idstr!("t.1"));
     let rax   = Arg::Reg(Reg::Rax);
+    let conclusion = crate::idstr!(".conclusion");
 
     let instr: Vec<Instr> = vec!(
         Instr::Mov64(v_var.clone(), Arg::Imm(1)), 
@@ -63,10 +92,10 @@ fn x64_build_liveness_set_for_block_six_vars() {
         Instr::Neg64(t_var.clone()),
         // {t, z}
         Instr::Mov64(rax.clone(), z_var.clone()),
-        // {t, rax}
+        // {t}
         Instr::Add64(rax.clone(), t_var.clone()),
         // {}
-        Instr::Ret,
+        Instr::Jmp(conclusion),
     );
 
     let expected: Vec<HashSet<Arg>> = vec!(
@@ -84,7 +113,6 @@ fn x64_build_liveness_set_for_block_six_vars() {
         crate::set!(),
     );
 
-    // no jump instructions in this block
     let (ls, _) = build_liveness_set_for_block(&instr);
 
     assert_eq!(ls, expected);
@@ -197,6 +225,81 @@ fn x64_build_liveness_set_two_labels() {
             crate::set!(w_var.clone(), t_var.clone()),
             crate::set!(rax, t_var),
             crate::set!()
+        )
+    );
+
+    let result = build_liveness_set(&lbps);
+
+    assert_eq!(result, expected);
+}
+
+#[test]
+fn x64_build_liveness_const_complete() {
+
+    let rax = Arg::Reg(Reg::Rax);
+    let rbp = Arg::Reg(Reg::Rbp);
+    let rsp = Arg::Reg(Reg::Rsp);
+
+    let prelude = crate::idstr!(".prelude");
+    let l1 = crate::idstr!(".l1");
+    let conclusion = crate::idstr!(".conclusion");
+
+    let lbps = vec!(
+        LabelBlockPair {
+            label: prelude.clone(),
+            block: 
+                Block {
+                    info: (),
+                    instr: vec!(
+                        Instr::Push(rbp.clone()),
+                        Instr::Mov64(rbp.clone(), rsp.clone()),
+                        Instr::Jmp(l1.clone()),
+                    )
+                }
+        },
+
+        LabelBlockPair {
+            label: l1.clone(),
+            block:
+                Block {
+                    info: (),
+                    instr: vec!(
+                        Instr::Mov64(rax.clone(), Arg::Imm(2)),
+                        Instr::Jmp(conclusion.clone()),
+                    )
+                }
+        },
+
+        LabelBlockPair {
+            label: conclusion.clone(),
+            block:
+                Block {
+                    info: (),
+                    instr: vec!(
+                        Instr::Mov64(rsp.clone(), rbp.clone()),
+                        Instr::Pop(rbp.clone()),
+                        Instr::Ret,
+                    )
+                }
+        },
+    );
+
+    let expected: AllBlockLiveSet = crate::map!(
+        prelude.clone() => vec!(
+            crate::set!(rsp.clone()),
+            crate::set!(rsp.clone()),
+            crate::set!(rbp.clone())
+        ),
+
+        l1.clone() => vec!(
+            crate::set!(rbp.clone()),
+            crate::set!(rbp.clone(), rax.clone())
+        ),
+
+        conclusion.clone() => vec!(
+            crate::set!(rbp, rax),
+            crate::set!(),
+            crate::set!(),
         )
     );
 

@@ -36,7 +36,7 @@ pub struct IRToX64Transformer<'a> {
     mp_used: bool, // flag for above value
 }
 
-mod liveness {
+pub mod liveness {
     use std::collections::{HashSet, HashMap};
     use crate::types::{IdString};
     use super::{BlockJumpPatch, BlockLiveSet, AllBlockLiveSet};
@@ -105,17 +105,17 @@ mod liveness {
     }
 
     // Lafter (k) = Lbefore (k + 1)
-    fn after<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
-        before(k + 1, i)
+    fn l_after<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
+        l_before(k + 1, i)
     }
 
     // Lbefore(k) = (Lafter(k) – W(k)) ∪R(k)
-    fn before<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
+    fn l_before<'a>(k: usize, i: &'a Vec<Instr>) -> HashSet<&'a Arg> {
 
         if k >= i.len() {
             HashSet::new()
         } else {
-            let mut before_k = after(k, i);
+            let mut before_k = l_after(k, i);
             let w = written_to(k, i);
             let r = read_from(k, i);
 
@@ -125,35 +125,37 @@ mod liveness {
             let union: HashSet<_> = before_k.union(&r).collect();
             before_k = union.iter().map(|val| (*val).clone()).collect();
 
+            //println!("l_before({} -> {:?}) = (l_after({:?}) - W({:?})) U R({:?})", k, &i[k], before_k, w, r);
+
             before_k
         }
     }
 
-    pub fn build_liveness_set_for_block<'a>(i: &'a Vec<Instr>) -> (BlockLiveSet, Vec<(usize, IdString)>) {
+    pub fn build_liveness_set_for_block<'a>(instr: &'a Vec<Instr>) -> (BlockLiveSet, Vec<(usize, IdString)>) {
         let mut jmp_patches: Vec<(usize, IdString)> = vec!();
 
-        let mut ls = BlockLiveSet::new();
-        ls.resize(i.len(), crate::set!());
+        let mut liveset = BlockLiveSet::new();
+        liveset.resize(instr.len(), crate::set!());
 
-        let n = i.len();
+        let n = instr.len();
 
-        // ls[k] = the variables that need to be live before this line is executed
+        // liveset[k] = the variables that need to be live before this line is executed
         // i.e. if 't.1' is used on line k, it needs to be live (i.e. its home needs to stay the same)
         // until this line (at the very least)
         for k in (0..n).rev() {
 
-            if let Instr::Jmp(label) = &i[k] {
+            if let Instr::Jmp(label) = &instr[k] {
                 jmp_patches.push((k, label.clone()));
             }
 
-            let mut b = before(k, i);
+            let mut b = l_before(k, instr);
 
             let to_owned: HashSet<_> = b.into_iter().map(|x| x.clone()).collect();
 
-            ls[k] = to_owned;
+            liveset[k] = to_owned;
         }
 
-        (ls, jmp_patches)
+        (liveset, jmp_patches)
     }
 
     fn patch_jumps(bls: &mut AllBlockLiveSet, patches: &BlockJumpPatch) -> () {
@@ -459,8 +461,8 @@ mod patch_instructions {
         }
 
         pub fn add_prelude_and_conclusion(&mut self) {
-            let pre = crate::idstr!("prelude");
-            let con = crate::idstr!("conclusion");
+            let pre = crate::idstr!(".prelude");
+            let con = crate::idstr!(".conclusion");
 
             let prelude = LabelBlockPair {
                 label: pre.clone(),
